@@ -5,6 +5,7 @@ import common.SortingTask;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -68,6 +69,7 @@ public class OneThreadPerClient implements Runnable {
           out.writeInt(result.getSerializedSize());
           result.writeTo(out);
         }
+      } catch (EOFException ignored) {
       } catch (IOException e) {
         e.printStackTrace();
       } finally {

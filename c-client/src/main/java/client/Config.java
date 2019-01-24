@@ -24,7 +24,7 @@ public class Config {
   }
 
 
-  static class ConfigBuilder {
+  static public class ConfigBuilder {
 
     private InetAddress server = setServer("localhost").server;
     private int port = 8080;

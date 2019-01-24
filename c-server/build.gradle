@@ -1,6 +1,12 @@
 plugins {
     id 'java'
+    id 'java-library'
+    id 'idea'
+    id 'com.google.protobuf' version '0.8.8'
 }
+
+apply plugin: 'com.google.protobuf'
+
 
 group 'itmo'
 version '1.0'
@@ -12,5 +18,10 @@ repositories {
 }
 
 dependencies {
+    implementation project(":c-common")
+    implementation project(":c-client")
+
     testCompile group: 'junit', name: 'junit', version: '4.12'
+    api group: 'com.google.protobuf', name: 'protobuf-java', version: '3.6.1'
+    compile 'com.google.guava:guava:27.0.1-jre'
 }
