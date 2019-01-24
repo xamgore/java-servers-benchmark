@@ -1,0 +1,5 @@
+rootProject.name = 'coursework'
+include 'c-common'
+include 'c-server'
+include 'c-client'
+
