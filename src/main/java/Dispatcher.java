@@ -1,4 +1,3 @@
-import client.Config;
 import client.Tank;
 import retrofit2.Call;
 import retrofit2.Retrofit;
@@ -19,6 +18,7 @@ public class Dispatcher {
 
   private static final RemoteDispatcherService remoteDispatcher =
       retrofit.create(RemoteDispatcherService.class);
+
 
   public void stopRemoteServer() throws IOException {
     remoteDispatcher.stop().execute();
@@ -44,15 +44,15 @@ public class Dispatcher {
       int clientsNumber = setup.getClientsNumber();
       List<Thread> threads = new ArrayList<>(clientsNumber);
       List<Tank> tanks = new ArrayList<>(clientsNumber);
-      long countFailedTanks = runNThreads(setup, config, threads, tanks);
+      long countFailedTanks = runNThreads(config, threads, tanks);
       System.out.println(countFailedTanks);
     }
   }
 
-  private long runNThreads(AttackConfig setup, AttackConfig config, List<Thread> threads, List<Tank> tanks) {
+  private long runNThreads(AttackConfig config, List<Thread> threads, List<Tank> tanks) {
     CountDownLatch latch = new CountDownLatch(config.getClientsNumber());
 
-    for (int idx = 0; idx < setup.getClientsNumber(); idx++) {
+    for (int idx = 0; idx < config.getClientsNumber(); idx++) {
       Tank tank = new Tank(config.toClientConfig(), latch);
 
       tanks.add(tank);
