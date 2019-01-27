@@ -8,6 +8,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.concurrent.CountDownLatch;
 
 import static common.SortingTask.Status.OK;
 import static common.SortingTask.checkIsCompleted;
@@ -18,12 +19,20 @@ public class Tank implements Runnable {
   private int requestNum;
   private Status resultStatus;
   private final Config config;
+  private final CountDownLatch latch;
 
   public Tank(Config config) {
     this.config = config;
+    this.latch = null;
+  }
+
+  public Tank(Config config, CountDownLatch latch) {
+    this.config = config;
+    this.latch = latch;
   }
 
   @Override public void run() {
+    if (latch != null) latch.countDown();
     resultStatus = createTaskAndCheckAnswer();
   }
 
