@@ -31,7 +31,7 @@ public class TankTest {
   }
 
   private Status runClientServer(Function<IntArray, IntArray> serverProcess) throws InterruptedException {
-    Config config = Config.create().setServer("localhost").setRequestsNumber(1).build();
+    Config config = Config.create().setHostAddress("localhost").setRequestsNumber(1).build();
 
     // server
     Thread server = new Thread(() -> runServer(serverProcess, config));

@@ -26,7 +26,7 @@ public class Config {
 
   static public class ConfigBuilder {
 
-    private InetAddress server = setServer("localhost").server;
+    private InetAddress server = setHostAddress("localhost").server;
     private int port = 8080;
     private int arraySize = 20000;
     private long sleepDelta = 100;
@@ -37,11 +37,11 @@ public class Config {
       return new Config(server, port, arraySize, sleepDelta, requestsNumber);
     }
 
-    public ConfigBuilder setServer(String server) {
+    public ConfigBuilder setHostAddress(String inetAddress) {
       try {
-        this.server = InetAddress.getByName(server);
+        this.server = InetAddress.getByName(inetAddress);
       } catch (UnknownHostException e) {
-        throw new RuntimeException("Can't parse \"" + server + "\" inet address");
+        throw new RuntimeException("Can't parse \"" + inetAddress + "\" inet address");
       }
       return this;
     }

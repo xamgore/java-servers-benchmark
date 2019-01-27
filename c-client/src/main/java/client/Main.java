@@ -12,7 +12,7 @@ public class Main {
     }
 
     Config config = Config.create()
-        .setServer(args[0])
+        .setHostAddress(args[0])
         .setPort(parseUnsignedInt(args[1]))
         .setArraySize(parseUnsignedInt(args[2]))
         .setSleepDelta(parseUnsignedLong(args[3]))

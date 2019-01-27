@@ -12,7 +12,7 @@ public class OneThreadPerClientTest {
 
   @Test
   public void testWithOneClient() throws InterruptedException {
-    Config config = Config.create().setServer("localhost").setRequestsNumber(10).build();
+    Config config = Config.create().setHostAddress("localhost").setRequestsNumber(10).build();
 
     // server
     Thread server = new Thread(new OneThreadPerClient(config.port));
