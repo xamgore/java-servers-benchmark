@@ -1,9 +1,16 @@
+import client.Config;
+import client.Tank;
 import retrofit2.Call;
 import retrofit2.Retrofit;
 import retrofit2.http.GET;
 import retrofit2.http.Query;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+
+import static common.SortingTask.Status.OK;
 
 public class Dispatcher {
 
@@ -32,5 +39,39 @@ public class Dispatcher {
 
   }
 
+  public void attack(AttackConfig setup) {
+    for (AttackConfig config : setup) {
+      int clientsNumber = setup.getClientsNumber();
+      List<Thread> threads = new ArrayList<>(clientsNumber);
+      List<Tank> tanks = new ArrayList<>(clientsNumber);
+      long countFailedTanks = runNThreads(setup, config, threads, tanks);
+      System.out.println(countFailedTanks);
+    }
+  }
+
+  private long runNThreads(AttackConfig setup, AttackConfig config, List<Thread> threads, List<Tank> tanks) {
+    CountDownLatch latch = new CountDownLatch(config.getClientsNumber());
+
+    for (int idx = 0; idx < setup.getClientsNumber(); idx++) {
+      Tank tank = new Tank(config.toClientConfig(), latch);
+
+      tanks.add(tank);
+      threads.add(new Thread(tank));
+    }
+
+    threads.forEach(Thread::start);
+
+    threads.forEach(thread -> {
+      try {
+        thread.join();
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+    });
+
+    return tanks.stream()
+        .filter(t -> (t.getResultStatus() != OK) || (t.getRequestNum() != config.getRequestsNumber()))
+        .count();
+  }
 
 }
