@@ -8,9 +8,12 @@ import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.TextField;
 import javafx.stage.Window;
 
+import java.io.IOException;
 import java.util.Arrays;
 
 public class Kek {
+
+  private static final Dispatcher dispatcher = new Dispatcher();
 
   @FXML
   private LineChart<Number, Number> chart;
@@ -44,7 +47,7 @@ public class Kek {
 
 
   @FXML
-  protected void handleSubmitButtonAction(ActionEvent event) throws InterruptedException {
+  protected void handleSubmitButtonAction(ActionEvent event) throws InterruptedException, IOException {
     Window owner = submitButton.getScene().getWindow();
 
     if (checkIsEmpty(numberOfRequestsField, "Fill the number of requests per client") ||
@@ -63,6 +66,9 @@ public class Kek {
     int step = Integer.parseUnsignedInt(stepField.getText());
     int architecture = architectureChoiceBox.getItems().indexOf(architectureChoiceBox.getValue());
     int param = variableParameterChoiceBox.getItems().indexOf(variableParameterChoiceBox.getValue());
+
+
+    dispatcher.startRemoteServer(architecture);
 
     // todo: run clients & fetch results
 
