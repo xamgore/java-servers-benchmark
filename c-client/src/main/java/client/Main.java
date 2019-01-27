@@ -1,13 +1,15 @@
 package client;
 
-import static common.SortingTask.Status.OK;
 import static java.lang.Integer.parseUnsignedInt;
 import static java.lang.Long.parseUnsignedLong;
 
 public class Main {
 
   public static void main(String[] args) {
-    // Usage: client.sh  server port size sleep count
+    if (args.length < 5) {
+      System.err.println("Usage: client.sh  server port size sleep count");
+      return;
+    }
 
     Config config = Config.create()
         .setServer(args[0])
@@ -19,7 +21,7 @@ public class Main {
 
     Tank tank = new Tank(config);
     tank.run();
-    if (tank.getResultStatus() != OK) System.exit(0);
+    System.exit(tank.getResultStatus().code);
   }
 
 }
