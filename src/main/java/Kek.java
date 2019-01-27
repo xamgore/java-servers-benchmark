@@ -31,6 +31,9 @@ public class Kek {
   private TextField numberOfClientsField;
 
   @FXML
+  private TextField sleepDeltaField;
+
+  @FXML
   private TextField fromField;
 
   @FXML
@@ -48,27 +51,28 @@ public class Kek {
 
   @FXML
   protected void handleSubmitButtonAction(ActionEvent event) throws InterruptedException, IOException {
-    Window owner = submitButton.getScene().getWindow();
-
     if (checkIsEmpty(numberOfRequestsField, "Fill the number of requests per client") ||
         checkIsEmpty(numberOfClientsField, "Fill the number of clients to start") ||
         checkIsEmpty(sizeOfArrayField, "Fill the size of array to sort") ||
         checkIsEmpty(fromField, "Fill the \"from\" field") ||
         checkIsEmpty(toField, "Fill the \"to\" field") ||
-        checkIsEmpty(stepField, "Fill the \"step\" field"))
+        checkIsEmpty(stepField, "Fill the \"step\" field") ||
+        checkIsEmpty(sleepDeltaField, "Fill the sleep delta field"))
       return;
 
-    int requestsNumber = Integer.parseUnsignedInt(numberOfRequestsField.getText());
-    int clientsNumber = Integer.parseUnsignedInt(numberOfClientsField.getText());
-    int arraySize = Integer.parseUnsignedInt(sizeOfArrayField.getText());
-    int from = Integer.parseUnsignedInt(fromField.getText());
-    int to = Integer.parseUnsignedInt(toField.getText());
-    int step = Integer.parseUnsignedInt(stepField.getText());
-    int architecture = architectureChoiceBox.getItems().indexOf(architectureChoiceBox.getValue());
-    int param = variableParameterChoiceBox.getItems().indexOf(variableParameterChoiceBox.getValue());
+    AttackConfig config = new AttackConfig(
+        numberOfRequestsField.getText(),
+        sleepDeltaField.getText(),
+        numberOfClientsField.getText(),
+        sizeOfArrayField.getText(),
+        fromField.getText(),
+        toField.getText(),
+        stepField.getText(),
+        architectureChoiceBox.getItems().indexOf(architectureChoiceBox.getValue()),
+        variableParameterChoiceBox.getItems().indexOf(variableParameterChoiceBox.getValue()));
 
-
-    dispatcher.startRemoteServer(architecture);
+    dispatcher.startRemoteServer(config.getArchitecture());
+    dispatcher.attack(config);
 
     // todo: run clients & fetch results
 
@@ -82,6 +86,10 @@ public class Kek {
         new XYChart.Data<>(30, 30),
         new XYChart.Data<>(40, 55)
     ));
+
+    chart.getData().addAll(firstSeries);
+
+    Thread.sleep(100000);
 
     XYChart.Series<Number, Number> secondSeries = new XYChart.Series<>();
     secondSeries.setName("2. thread (read), thread executor (write) per client, processing in the common executor");
@@ -103,8 +111,6 @@ public class Kek {
     ));
 
     chart.getData().addAll(firstSeries, secondSeries, thirdSeries);
-
-    //    AlertHelper.showAlert(Alert.AlertType.INFORMATION, owner, "Kek!", "param: " + param);
   }
 
   private boolean checkIsEmpty(TextField field, String message) {
