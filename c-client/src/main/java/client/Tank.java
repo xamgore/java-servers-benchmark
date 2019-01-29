@@ -3,6 +3,7 @@ package client;
 import common.IntArrayOuterClass.IntArray;
 import common.SortingTask;
 import common.SortingTask.Status;
+import common.Stopwatch;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -20,7 +21,7 @@ public class Tank implements Runnable {
   private Status resultStatus;
   private final Config config;
   private final CountDownLatch latch;
-  private double averageTimePerRequest;
+  private Stopwatch stopwatch;
 
   public Tank(Config config) {
     this.config = config;
@@ -34,20 +35,20 @@ public class Tank implements Runnable {
 
   @Override public void run() {
     if (latch != null) latch.countDown();
-    final long startTime = System.currentTimeMillis();
-    resultStatus = createTaskAndCheckAnswer();
-    averageTimePerRequest = requestNum == 0
-        ? 0 : (System.currentTimeMillis() - startTime + .0) / requestNum;
+    stopwatch = new Stopwatch();
+    resultStatus = createTaskAndCheckAnswers();
   }
 
 
-  public Status createTaskAndCheckAnswer() {
+  public Status createTaskAndCheckAnswers() {
     try (
         Socket socket = new Socket(config.server, config.port);
         DataOutputStream out = new DataOutputStream(socket.getOutputStream());
         DataInputStream in = new DataInputStream(socket.getInputStream());
     ) {
       for (requestNum = 0; requestNum < config.requestsNumber; requestNum++) {
+        stopwatch.start();
+
         // create and send a task
         IntArray task = SortingTask.create(config.arraySize);
         out.writeInt(task.getSerializedSize());
@@ -58,6 +59,8 @@ public class Tank implements Runnable {
         byte[] buffer = new byte[in.readInt()];
         in.readFully(buffer);
         resultStatus = checkIsCompleted(IntArray.parseFrom(buffer), config.arraySize);
+
+        stopwatch.stop();
         if (resultStatus != OK) return resultStatus;
 
         // todo: should catch a spurious wakeup?
@@ -81,7 +84,7 @@ public class Tank implements Runnable {
   }
 
   public double getAverageTimePerRequest() {
-    return averageTimePerRequest;
+    return stopwatch.getDuration();
   }
 
 }
