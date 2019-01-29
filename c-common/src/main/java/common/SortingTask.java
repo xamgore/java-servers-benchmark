@@ -41,10 +41,19 @@ public class SortingTask {
     // test #1: same length
     if (numbers.length != expectedArraySize) return Status.LENGTH_DIFFERS;
 
-    // test #2: is sorted
-    int[] sorted = numbers.clone();
-    Arrays.sort(sorted);
-    return Arrays.equals(numbers, sorted) ? Status.OK : Status.NOT_SORTED;
+    // test #2: is ordered
+    if (numbers.length >= 2) {
+      for (int idx = 0; idx + 1 < numbers.length; idx++)
+        if (numbers[idx] > numbers[idx + 1])
+          return Status.NOT_SORTED;
+    }
+
+    return Status.OK;
+
+    // test #3: is sorted
+//    int[] sorted = numbers.clone();
+//    Arrays.sort(sorted);
+//    return Arrays.equals(numbers, sorted) ? Status.OK : Status.NOT_SORTED;
   }
 
 }
