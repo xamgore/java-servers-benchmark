@@ -1,6 +1,7 @@
 import client.Tank;
 import retrofit2.Call;
 import retrofit2.Retrofit;
+import retrofit2.converter.scalars.ScalarsConverterFactory;
 import retrofit2.http.GET;
 import retrofit2.http.Query;
 
@@ -12,7 +13,9 @@ import java.util.concurrent.CountDownLatch;
 public class Dispatcher {
 
   private static final Retrofit retrofit =
-      new Retrofit.Builder().baseUrl("http://localhost:5400/").build();
+      new Retrofit.Builder()
+          .addConverterFactory(ScalarsConverterFactory.create())
+          .baseUrl("http://localhost:5400/").build();
 
   private static final RemoteDispatcherService remoteDispatcher =
       retrofit.create(RemoteDispatcherService.class);
@@ -26,6 +29,21 @@ public class Dispatcher {
     remoteDispatcher.start(architectureIdx).execute();
   }
 
+  private AttackResult setServerStats(AttackResult result) {
+    result.serverAverageRequestTime = -100; // errnous values
+    result.serverAverageSortingTime = -100;
+
+    try {
+      String twoNumbersWithDelimeter = remoteDispatcher.stats().execute().body();
+      if (twoNumbersWithDelimeter == null) return result;
+
+      String[] numbers = twoNumbersWithDelimeter.split(":");
+      result.serverAverageRequestTime = Double.parseDouble(numbers[0]);
+      result.serverAverageSortingTime = Double.parseDouble(numbers[1]);
+    } catch (IOException ignored) {}
+
+    return result;
+  }
 
   public interface RemoteDispatcherService {
 
@@ -34,6 +52,9 @@ public class Dispatcher {
 
     @GET("/start")
     Call<Void> start(@Query("arch") int archIdx);
+
+    @GET("/stats")
+    Call<String> stats();
 
   }
 
@@ -54,10 +75,7 @@ public class Dispatcher {
 
     AttackResult result = new AttackResult(config.getVaryingParameter());
     result.clientAverageTimePerRequest = runNThreads(config, threads, tanks);
-    // todo: fetch statistics from the server
-
-    System.out.println(result.clientAverageTimePerRequest);
-    return result;
+    return setServerStats(result);
   }
 
   /**
@@ -86,17 +104,6 @@ public class Dispatcher {
 
     return tanks.stream().mapToDouble(Tank::getAverageTimePerRequest).average().orElse(-1);
 //        .filter(t -> (t.getResultStatus() != OK) || (t.getRequestNum() != config.getRequestsNumber())).count();
-  }
-
-  public static class AttackResult {
-
-    public double clientAverageTimePerRequest;
-    public int varyingParameter;
-
-    public AttackResult(int varyingParameter) {
-      this.varyingParameter = varyingParameter;
-    }
-
   }
 
 }

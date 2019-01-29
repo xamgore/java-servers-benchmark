@@ -2,6 +2,7 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.XYChart;
+import javafx.scene.chart.XYChart.Data;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
@@ -10,6 +11,7 @@ import javafx.stage.Window;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class Kek {
@@ -73,46 +75,36 @@ public class Kek {
         variableParameterChoiceBox.getItems().indexOf(variableParameterChoiceBox.getValue()));
 
     dispatcher.startRemoteServer(config.getArchitecture());
-    List<Dispatcher.AttackResult> results = dispatcher.attack(config);
+    List<AttackResult> results = dispatcher.attack(config);
+    dispatcher.stopRemoteServer();
 
-    // todo: run clients & fetch results
 
     chart.getData().clear();
 
-    chart.getData().add(newSeries(
-        "avg time for a request on a client",
-        results.stream()
-            .map(res -> new XYChart.Data<Number, Number>(res.varyingParameter, res.clientAverageTimePerRequest))
-            .collect(Collectors.toList())));
+    chart.getData().add(newSeries(results,
+        "client request avg time",
+        res -> res.clientAverageTimePerRequest));
 
-//    Thread.sleep(100000);
-//
-//    XYChart.Series<Number, Number> secondSeries = new XYChart.Series<>();
-//    secondSeries.setName("2. thread (read), thread executor (write) per client, processing in the common executor");
-//    secondSeries.getData().addAll(Arrays.asList(
-//        new XYChart.Data<>(10, 0),
-//        new XYChart.Data<>(20, 25),
-//        new XYChart.Data<>(30, 50),
-//        new XYChart.Data<>(40, 75)
-//    ));
-//
-//
-//    XYChart.Series<Number, Number> thirdSeries = new XYChart.Series<>();
-//    thirdSeries.setName("3. selector for read, selector for write, processing in the common executor");
-//    thirdSeries.getData().addAll(Arrays.asList(
-//        new XYChart.Data<>(10, 0),
-//        new XYChart.Data<>(20, 5),
-//        new XYChart.Data<>(30, 20),
-//        new XYChart.Data<>(40, 30)
-//    ));
-//
-//    chart.getData().addAll(clientTimeSeries, secondSeries, thirdSeries);
+    chart.getData().add(newSeries(results,
+        "server request avg time",
+        res -> res.serverAverageRequestTime));
+
+    chart.getData().add(newSeries(results,
+        "server sorting avg time",
+        res -> res.serverAverageSortingTime));
   }
 
-  private static XYChart.Series<Number, Number> newSeries(String name, List<XYChart.Data<Number, Number>> data) {
+
+  private static XYChart.Series<Number, Number>
+  newSeries(List<AttackResult> results,
+            String name,
+            Function<AttackResult, Number> fieldGetter) {
     XYChart.Series<Number, Number> series = new XYChart.Series<>();
     series.setName(name);
-    series.getData().addAll(data);
+    series.getData().addAll(
+        results.stream()
+            .map(res -> new Data<Number, Number>(res.varyingParameter, fieldGetter.apply(res)))
+            .collect(Collectors.toList()));
     return series;
   }
 
