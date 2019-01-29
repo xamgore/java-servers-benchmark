@@ -34,7 +34,7 @@
 
 
 
-        <ChoiceBox fx:id="variableParameterChoiceBox" layoutX="446.0" layoutY="52.0" prefHeight="26.0" prefWidth="172.0" value="requests">
+        <ChoiceBox fx:id="variableParameterChoiceBox" layoutX="446.0" layoutY="52.0" prefHeight="26.0" prefWidth="172.0" value="size">
             <items>
                 <FXCollections fx:factory="observableArrayList">
                     <String fx:value="sleep delta" />
