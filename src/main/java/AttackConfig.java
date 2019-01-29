@@ -74,6 +74,8 @@ public class AttackConfig implements Iterable<AttackConfig> {
     }
 
     @Override public AttackConfig next() {
+      if (!hasNext()) return null;
+
       if (isFirst) {
         isFirst = false;
       } else {
