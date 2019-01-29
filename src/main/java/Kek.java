@@ -46,6 +46,9 @@ public class Kek {
   private TextField stepField;
 
   @FXML
+  private TextField hostField;
+
+  @FXML
   private ChoiceBox variableParameterChoiceBox;
 
   @FXML
@@ -60,8 +63,10 @@ public class Kek {
         checkIsEmpty(fromField, "Fill the \"from\" field") ||
         checkIsEmpty(toField, "Fill the \"to\" field") ||
         checkIsEmpty(stepField, "Fill the \"step\" field") ||
+        checkIsEmpty(hostField, "Fill the \"host\" field") ||
         checkIsEmpty(sleepDeltaField, "Fill the sleep delta field"))
       return;
+
 
     AttackConfig config = new AttackConfig(
         numberOfRequestsField.getText(),
@@ -74,6 +79,8 @@ public class Kek {
         architectureChoiceBox.getItems().indexOf(architectureChoiceBox.getValue()),
         variableParameterChoiceBox.getItems().indexOf(variableParameterChoiceBox.getValue()));
 
+
+    Dispatcher.init(hostField.getText());
     dispatcher.startRemoteServer(config.getArchitecture());
     List<AttackResult> results = dispatcher.attack(config);
     dispatcher.stopRemoteServer();

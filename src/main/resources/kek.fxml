@@ -34,7 +34,7 @@
 
 
 
-        <ChoiceBox fx:id="variableParameterChoiceBox" layoutX="446.0" layoutY="52.0" prefHeight="26.0" prefWidth="172.0" value="size">
+        <ChoiceBox fx:id="variableParameterChoiceBox" layoutX="489.0" layoutY="52.0" prefHeight="26.0" prefWidth="172.0" value="size">
             <items>
                 <FXCollections fx:factory="observableArrayList">
                     <String fx:value="sleep delta" />
@@ -44,30 +44,31 @@
             </items>
         </ChoiceBox>
 
-        <TextField fx:id="fromField" layoutX="645.0" layoutY="52.0" prefHeight="26.0" prefWidth="57.0" text="10" />
+        <TextField fx:id="fromField" layoutX="688.0" layoutY="52.0" prefHeight="26.0" prefWidth="57.0" text="10" />
 
-        <TextField fx:id="toField" layoutX="719.0" layoutY="52.0" prefHeight="26.0" prefWidth="57.0" text="100" />
+        <TextField fx:id="toField" layoutX="762.0" layoutY="52.0" prefHeight="26.0" prefWidth="57.0" text="100" />
 
-        <TextField fx:id="stepField" layoutX="794.0" layoutY="52.0" prefHeight="26.0" prefWidth="57.0" text="10" />
+        <TextField fx:id="stepField" layoutX="837.0" layoutY="52.0" prefHeight="26.0" prefWidth="57.0" text="10" />
 
+        <TextField fx:id="hostField" layoutX="728.0" layoutY="98.0" text="localhost" />
 
 
         <Button fx:id="submitButton" alignment="CENTER" contentDisplay="RIGHT" layoutX="910.0" layoutY="760.0" mnemonicParsing="false" onAction="#handleSubmitButtonAction" text="Run tests" />
 
 
-        <Label layoutX="794.0" layoutY="26.0" text="step">
+        <Label layoutX="837.0" layoutY="26.0" text="step">
             <font>
                 <Font size="17.0" />
             </font>
         </Label>
 
-        <Label layoutX="446.0" layoutY="26.0" text="Variable parameter:">
+        <Label layoutX="489.0" layoutY="26.0" text="Variable parameter:">
             <font>
                 <Font size="17.0" />
             </font>
         </Label>
 
-        <Label layoutX="645.0" layoutY="26.0" text="from">
+        <Label layoutX="688.0" layoutY="26.0" text="from">
             <font>
                 <Font size="17.0" />
             </font>
@@ -103,11 +104,12 @@
             </font>
         </Label>
 
-        <Label layoutX="719.0" layoutY="26.0" text="to">
+        <Label layoutX="762.0" layoutY="26.0" text="to">
             <font>
                 <Font size="17.0" />
             </font>
         </Label>
+
 
         <LineChart fx:id="chart" layoutX="20.0" layoutY="241.0" prefHeight="505.0" prefWidth="961.0">
             <xAxis>
