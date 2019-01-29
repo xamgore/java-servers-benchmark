@@ -20,6 +20,7 @@ public class Tank implements Runnable {
   private Status resultStatus;
   private final Config config;
   private final CountDownLatch latch;
+  private double averageTimePerRequest;
 
   public Tank(Config config) {
     this.config = config;
@@ -33,7 +34,10 @@ public class Tank implements Runnable {
 
   @Override public void run() {
     if (latch != null) latch.countDown();
+    final long startTime = System.currentTimeMillis();
     resultStatus = createTaskAndCheckAnswer();
+    averageTimePerRequest = requestNum == 0
+        ? 0 : (System.currentTimeMillis() - startTime + .0) / requestNum;
   }
 
 
@@ -68,14 +72,16 @@ public class Tank implements Runnable {
   }
 
 
-  // for debug purpose, case when execution was stopped
-  // todo: remove
   public int getRequestNum() {
     return requestNum;
   }
 
   public Status getResultStatus() {
     return resultStatus;
+  }
+
+  public double getAverageTimePerRequest() {
+    return averageTimePerRequest;
   }
 
 }
