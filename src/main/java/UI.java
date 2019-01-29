@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class Kek {
+public class UI {
 
   private static final Dispatcher dispatcher = new Dispatcher();
 
