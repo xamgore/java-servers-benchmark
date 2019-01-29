@@ -53,19 +53,19 @@ public class Config {
     }
 
     public ConfigBuilder setArraySize(int arraySize) {
-      if (arraySize > 0)
+      if (arraySize >= 0)
         this.arraySize = arraySize;
       return this;
     }
 
     public ConfigBuilder setSleepDelta(long sleepDelta) {
-      if (sleepDelta > 0)
+      if (sleepDelta >= 0)
         this.sleepDelta = sleepDelta;
       return this;
     }
 
     public ConfigBuilder setRequestsNumber(int requestsNumber) {
-      if (requestsNumber > 0)
+      if (requestsNumber >= 0)
         this.requestsNumber = requestsNumber;
       return this;
     }
