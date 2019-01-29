@@ -108,7 +108,7 @@ public class Dispatcher {
       }
     });
 
-    return tanks.stream().mapToDouble(Tank::getAverageTimePerRequest).average().orElse(-1);
+    return tanks.stream().mapToDouble(Tank::getAverageTimePerRequest).sum() / config.getClientsNumber();
 //        .filter(t -> (t.getResultStatus() != OK) || (t.getRequestNum() != config.getRequestsNumber())).count();
   }
 
