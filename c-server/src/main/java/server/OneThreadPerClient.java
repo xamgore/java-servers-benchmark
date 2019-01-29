@@ -3,6 +3,7 @@ package server;
 import com.google.common.util.concurrent.AtomicDouble;
 import common.IntArrayOuterClass.IntArray;
 import common.SortingTask;
+import common.Stopwatch;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -20,9 +21,9 @@ public class OneThreadPerClient implements Architecture {
 
   private final int port;
   private final Set<ClientHolder> activeClients;
-  private AtomicDouble commonSortingTime = new AtomicDouble();
-  private AtomicDouble commonRequestTime = new AtomicDouble();
-  private AtomicInteger clientsProcessed = new AtomicInteger();
+  private AtomicDouble commonSortingTime;
+  private AtomicDouble commonRequestTime;
+  private AtomicInteger clientsProcessed;
 
   public OneThreadPerClient(int port) {
     this.port = port;
@@ -44,6 +45,10 @@ public class OneThreadPerClient implements Architecture {
 
 
   @Override public void run() {
+    commonSortingTime = new AtomicDouble();
+    commonRequestTime = new AtomicDouble();
+    clientsProcessed = new AtomicInteger();
+
     try (ServerSocket server = new ServerSocket(port)) {
       server.setSoTimeout(100);
 
@@ -87,17 +92,18 @@ public class OneThreadPerClient implements Architecture {
         while (!Thread.interrupted()) {
           byte[] buffer = new byte[in.readInt()];
           in.readFully(buffer);
+
           requestStopwatch.start();
+          {
+            sortingStopwatch.start();
+            IntArray task = IntArray.parseFrom(buffer);
+            IntArray result = SortingTask.complete(task);
+            sortingStopwatch.stop();
 
-          sortingStopwatch.start();
-          IntArray task = IntArray.parseFrom(buffer);
-          IntArray result = SortingTask.complete(task);
-          sortingStopwatch.stop();
-
-          out.writeInt(result.getSerializedSize());
-          result.writeTo(out);
-          out.flush();
-
+            out.writeInt(result.getSerializedSize());
+            result.writeTo(out);
+            out.flush();
+          }
           requestStopwatch.stop();
         }
       } catch (EOFException ignored) {

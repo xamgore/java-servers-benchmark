@@ -4,6 +4,7 @@ import com.google.common.util.concurrent.AtomicDouble;
 import com.google.protobuf.InvalidProtocolBufferException;
 import common.IntArrayOuterClass.IntArray;
 import common.SortingTask;
+import common.Stopwatch;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -18,7 +19,6 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static common.IntArrayOuterClass.IntArray.parseFrom;
 import static java.util.concurrent.Executors.newFixedThreadPool;
@@ -29,9 +29,9 @@ public class CommonTaskExecutor implements Architecture {
   private final int port;
   private final Set<ClientHolder> activeClients;
   private final Executor executor = newFixedThreadPool(4);
-  private AtomicDouble commonSortingTime = new AtomicDouble();
-  private AtomicDouble commonRequestTime = new AtomicDouble();
-  private AtomicInteger clientsProcessed = new AtomicInteger();
+  private AtomicDouble commonSortingTime;
+  private AtomicDouble commonRequestTime;
+  private AtomicInteger clientsProcessed;
 
 
   public CommonTaskExecutor(int port) {
@@ -90,6 +90,11 @@ public class CommonTaskExecutor implements Architecture {
     }
 
     @Override public void run() {
+      commonSortingTime = new AtomicDouble();
+      commonRequestTime = new AtomicDouble();
+      clientsProcessed = new AtomicInteger();
+
+
       try {
         // client makes a finite number of requests
         while (!Thread.interrupted()) {
