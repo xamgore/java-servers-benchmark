@@ -1,5 +1,6 @@
 package server;
 
+import com.google.common.util.concurrent.AtomicDouble;
 import common.IntArrayOuterClass.IntArray;
 import common.SortingTask;
 
@@ -13,15 +14,32 @@ import java.net.SocketTimeoutException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public class OneThreadPerClient implements Runnable {
+public class OneThreadPerClient implements Architecture {
 
   private final int port;
   private final Set<ClientHolder> activeClients;
+  private AtomicDouble commonSortingTime = new AtomicDouble();
+  private AtomicDouble commonRequestTime = new AtomicDouble();
+  private AtomicInteger clientsProcessed = new AtomicInteger();
 
   public OneThreadPerClient(int port) {
     this.port = port;
     this.activeClients = Collections.synchronizedSet(new HashSet<>());
+  }
+
+
+  @Override public double getTotalSortingTime() {
+    return commonSortingTime.get();
+  }
+
+  @Override public double getTotalRequestTime() {
+    return commonRequestTime.get();
+  }
+
+  @Override public int getClientsNumberProcessed() {
+    return clientsProcessed.get();
   }
 
 
@@ -45,14 +63,19 @@ public class OneThreadPerClient implements Runnable {
     }
   }
 
+
   private class ClientHolder implements Runnable {
 
     final Socket socket;
     Thread runningThread;
+    final Stopwatch sortingStopwatch;
+    final Stopwatch requestStopwatch;
 
     public ClientHolder(Socket socket) {
       this.socket = socket;
-      this.runningThread = new Thread(this);
+      runningThread = new Thread(this);
+      sortingStopwatch = new Stopwatch();
+      requestStopwatch = new Stopwatch();
     }
 
     @Override public void run() {
@@ -64,12 +87,18 @@ public class OneThreadPerClient implements Runnable {
         while (!Thread.interrupted()) {
           byte[] buffer = new byte[in.readInt()];
           in.readFully(buffer);
+          requestStopwatch.start();
 
+          sortingStopwatch.start();
           IntArray task = IntArray.parseFrom(buffer);
           IntArray result = SortingTask.complete(task);
+          sortingStopwatch.stop();
 
           out.writeInt(result.getSerializedSize());
           result.writeTo(out);
+          out.flush();
+
+          requestStopwatch.stop();
         }
       } catch (EOFException ignored) {
       } catch (IOException e) {
@@ -83,10 +112,13 @@ public class OneThreadPerClient implements Runnable {
         } catch (IOException e) {
           e.printStackTrace();
         }
+
+        commonRequestTime.addAndGet(requestStopwatch.getDuration());
+        commonSortingTime.addAndGet(sortingStopwatch.getDuration());
+        clientsProcessed.incrementAndGet();
       }
     }
 
   }
-
 
 }

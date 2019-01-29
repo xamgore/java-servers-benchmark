@@ -12,6 +12,7 @@ public class Main extends NanoHTTPD {
   public static final int SERVER_PORT = 5400;
 
   private Thread serverInstance;
+  private Architecture architecture;
 
   private Main(int port) {
     super(port);
@@ -38,6 +39,8 @@ public class Main extends NanoHTTPD {
       startServer(archIdx);
     } else if (url.equals("/stop")) {
       stopServer();
+    } else if (url.equals("/stats")) {
+      return getStats();
     } else if (!url.equals("/favicon.ico")) {
       System.out.println(session.getUri());
     }
@@ -56,7 +59,7 @@ public class Main extends NanoHTTPD {
     System.out.printf("/start arch=%d\n", architectureIdx);
     stopServer();
 
-    Runnable architecture = architectureIdx == 0
+    architecture = architectureIdx == 0
         ? new OneThreadPerClient(8080)
         : new CommonTaskExecutor(8080);
 
@@ -75,6 +78,13 @@ public class Main extends NanoHTTPD {
     } catch (InterruptedException e) {
       e.printStackTrace();
     }
+  }
+
+  private Response getStats() {
+    if (architecture == null) return null;
+    String msg = String.format("%.2f:%.2f", architecture.getAvgRequestTime(), architecture.getAvgSortingTime());
+    System.out.println(msg);
+    return newFixedLengthResponse(msg);
   }
 
 }

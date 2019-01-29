@@ -1,5 +1,6 @@
 package server;
 
+import com.google.common.util.concurrent.AtomicDouble;
 import com.google.protobuf.InvalidProtocolBufferException;
 import common.IntArrayOuterClass.IntArray;
 import common.SortingTask;
@@ -16,20 +17,38 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static common.IntArrayOuterClass.IntArray.parseFrom;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 
-public class CommonTaskExecutor implements Runnable {
+public class CommonTaskExecutor implements Architecture {
 
   private final int port;
   private final Set<ClientHolder> activeClients;
   private final Executor executor = newFixedThreadPool(4);
+  private AtomicDouble commonSortingTime = new AtomicDouble();
+  private AtomicDouble commonRequestTime = new AtomicDouble();
+  private AtomicInteger clientsProcessed = new AtomicInteger();
+
 
   public CommonTaskExecutor(int port) {
     this.port = port;
     this.activeClients = Collections.synchronizedSet(new HashSet<>());
+  }
+
+  @Override public double getTotalSortingTime() {
+    return commonSortingTime.get();
+  }
+
+  @Override public double getTotalRequestTime() {
+    return commonRequestTime.get();
+  }
+
+  @Override public int getClientsNumberProcessed() {
+    return clientsProcessed.get();
   }
 
 
@@ -53,6 +72,7 @@ public class CommonTaskExecutor implements Runnable {
     }
   }
 
+
   private class ClientHolder implements Runnable {
 
     final Socket socket;
@@ -63,10 +83,10 @@ public class CommonTaskExecutor implements Runnable {
 
     public ClientHolder(Socket socket) throws IOException {
       this.socket = socket;
-      this.in = new DataInputStream(socket.getInputStream());
-      this.out = new DataOutputStream(socket.getOutputStream());
-      this.runningThread = new Thread(this);
-      this.sendResponseExecutor = newSingleThreadExecutor();
+      in = new DataInputStream(socket.getInputStream());
+      out = new DataOutputStream(socket.getOutputStream());
+      runningThread = new Thread(this);
+      sendResponseExecutor = newSingleThreadExecutor();
     }
 
     @Override public void run() {
@@ -75,6 +95,7 @@ public class CommonTaskExecutor implements Runnable {
         while (!Thread.interrupted()) {
           byte[] buffer = new byte[in.readInt()];
           in.readFully(buffer);
+
           executor.execute(solveTask(buffer));
         }
       } catch (EOFException ignored) {
@@ -90,15 +111,22 @@ public class CommonTaskExecutor implements Runnable {
         } catch (IOException e) {
           e.printStackTrace();
         }
+
+        clientsProcessed.incrementAndGet();
       }
     }
 
     private Runnable solveTask(byte[] buffer) {
       return () -> {
         try {
+          Stopwatch requestStopwatch = new Stopwatch().start();
+
+          Stopwatch sortingStopwatch = new Stopwatch().start();
           IntArray task = parseFrom(buffer);
           IntArray result = SortingTask.complete(task);
-          sendResponseExecutor.execute(sendResponse(result));
+          sortingStopwatch.stop();
+
+          sendResponseExecutor.execute(sendResponse(result, requestStopwatch, sortingStopwatch));
         } catch (InvalidProtocolBufferException e) {
           e.printStackTrace();
         }
@@ -106,7 +134,7 @@ public class CommonTaskExecutor implements Runnable {
       };
     }
 
-    private Runnable sendResponse(IntArray result) {
+    private Runnable sendResponse(IntArray result, Stopwatch requestStopwatch, Stopwatch sortingStopwatch) {
       return () -> {
         try {
           out.writeInt(result.getSerializedSize());
@@ -114,6 +142,11 @@ public class CommonTaskExecutor implements Runnable {
           out.flush();
         } catch (IOException e) {
           e.printStackTrace();
+        } finally {
+          requestStopwatch.stop();
+
+          commonRequestTime.addAndGet(requestStopwatch.getDuration());
+          commonSortingTime.addAndGet(sortingStopwatch.getDuration());
         }
       };
     }
