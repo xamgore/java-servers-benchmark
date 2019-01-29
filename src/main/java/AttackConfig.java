@@ -63,17 +63,23 @@ public class AttackConfig implements Iterable<AttackConfig> {
   private static class ConfigIterator implements Iterator<AttackConfig> {
 
     AttackConfig config;
+    boolean isFirst = true;
 
     private ConfigIterator(AttackConfig config) {
       this.config = config;
     }
 
     @Override public boolean hasNext() {
-      return config.paramValue < config.to;
+      return isFirst || config.paramValue < config.to;
     }
 
     @Override public AttackConfig next() {
-      config.paramValue += config.step;
+      if (isFirst) {
+        isFirst = false;
+      } else {
+        config.paramValue += config.step;
+      }
+
       return config;
     }
 
