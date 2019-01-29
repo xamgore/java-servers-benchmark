@@ -32,6 +32,8 @@ public class AttackConfig implements Iterable<AttackConfig> {
     this.param = param;
   }
 
+  public int getVaryingParameter() { return paramValue; }
+
   public int getRequestsNumber() { return this.requestsNumber; }
 
   public int getSleepDelta() {

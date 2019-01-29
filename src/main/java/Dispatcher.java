@@ -9,8 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
-import static common.SortingTask.Status.OK;
-
 public class Dispatcher {
 
   private static final Retrofit retrofit =
@@ -39,17 +37,34 @@ public class Dispatcher {
 
   }
 
-  public void attack(AttackConfig setup) {
+  public List<AttackResult> attack(AttackConfig setup) {
+    List<AttackResult> results = new ArrayList<>();
+
     for (AttackConfig config : setup) {
-      int clientsNumber = setup.getClientsNumber();
-      List<Thread> threads = new ArrayList<>(clientsNumber);
-      List<Tank> tanks = new ArrayList<>(clientsNumber);
-      long countFailedTanks = runNThreads(config, threads, tanks);
-      System.out.println(countFailedTanks);
+      results.add(doAttackAndGatherStatistics(config));
     }
+
+    return results;
   }
 
-  private long runNThreads(AttackConfig config, List<Thread> threads, List<Tank> tanks) {
+  private AttackResult doAttackAndGatherStatistics(AttackConfig config) {
+    int clientsNumber = config.getClientsNumber();
+    List<Thread> threads = new ArrayList<>(clientsNumber);
+    List<Tank> tanks = new ArrayList<>(clientsNumber);
+
+    AttackResult result = new AttackResult(config.getVaryingParameter());
+    result.clientAverageTimePerRequest = runNThreads(config, threads, tanks);
+    // todo: fetch statistics from the server
+
+    System.out.println(result.clientAverageTimePerRequest);
+    return result;
+  }
+
+  /**
+   * @return the average time of a request processed on a client.
+   * avg [(start client - shutdown client) / requests per client]
+   */
+  private double runNThreads(AttackConfig config, List<Thread> threads, List<Tank> tanks) {
     CountDownLatch latch = new CountDownLatch(config.getClientsNumber());
 
     for (int idx = 0; idx < config.getClientsNumber(); idx++) {
@@ -69,9 +84,19 @@ public class Dispatcher {
       }
     });
 
-    return tanks.stream()
-        .filter(t -> (t.getResultStatus() != OK) || (t.getRequestNum() != config.getRequestsNumber()))
-        .count();
+    return tanks.stream().mapToDouble(Tank::getAverageTimePerRequest).average().orElse(-1);
+//        .filter(t -> (t.getResultStatus() != OK) || (t.getRequestNum() != config.getRequestsNumber())).count();
+  }
+
+  public static class AttackResult {
+
+    public double clientAverageTimePerRequest;
+    public int varyingParameter;
+
+    public AttackResult(int varyingParameter) {
+      this.varyingParameter = varyingParameter;
+    }
+
   }
 
 }

@@ -9,7 +9,8 @@ import javafx.scene.control.TextField;
 import javafx.stage.Window;
 
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class Kek {
 
@@ -72,45 +73,47 @@ public class Kek {
         variableParameterChoiceBox.getItems().indexOf(variableParameterChoiceBox.getValue()));
 
     dispatcher.startRemoteServer(config.getArchitecture());
-    dispatcher.attack(config);
+    List<Dispatcher.AttackResult> results = dispatcher.attack(config);
 
     // todo: run clients & fetch results
 
     chart.getData().clear();
 
-    XYChart.Series<Number, Number> firstSeries = new XYChart.Series<>();
-    firstSeries.setName("1. thread (read, process, write) per client");
-    firstSeries.getData().addAll(Arrays.asList(
-        new XYChart.Data<>(10, 0),
-        new XYChart.Data<>(20, 10),
-        new XYChart.Data<>(30, 30),
-        new XYChart.Data<>(40, 55)
-    ));
+    chart.getData().add(newSeries(
+        "avg time for a request on a client",
+        results.stream()
+            .map(res -> new XYChart.Data<Number, Number>(res.varyingParameter, res.clientAverageTimePerRequest))
+            .collect(Collectors.toList())));
 
-    chart.getData().addAll(firstSeries);
+//    Thread.sleep(100000);
+//
+//    XYChart.Series<Number, Number> secondSeries = new XYChart.Series<>();
+//    secondSeries.setName("2. thread (read), thread executor (write) per client, processing in the common executor");
+//    secondSeries.getData().addAll(Arrays.asList(
+//        new XYChart.Data<>(10, 0),
+//        new XYChart.Data<>(20, 25),
+//        new XYChart.Data<>(30, 50),
+//        new XYChart.Data<>(40, 75)
+//    ));
+//
+//
+//    XYChart.Series<Number, Number> thirdSeries = new XYChart.Series<>();
+//    thirdSeries.setName("3. selector for read, selector for write, processing in the common executor");
+//    thirdSeries.getData().addAll(Arrays.asList(
+//        new XYChart.Data<>(10, 0),
+//        new XYChart.Data<>(20, 5),
+//        new XYChart.Data<>(30, 20),
+//        new XYChart.Data<>(40, 30)
+//    ));
+//
+//    chart.getData().addAll(clientTimeSeries, secondSeries, thirdSeries);
+  }
 
-    Thread.sleep(100000);
-
-    XYChart.Series<Number, Number> secondSeries = new XYChart.Series<>();
-    secondSeries.setName("2. thread (read), thread executor (write) per client, processing in the common executor");
-    secondSeries.getData().addAll(Arrays.asList(
-        new XYChart.Data<>(10, 0),
-        new XYChart.Data<>(20, 25),
-        new XYChart.Data<>(30, 50),
-        new XYChart.Data<>(40, 75)
-    ));
-
-
-    XYChart.Series<Number, Number> thirdSeries = new XYChart.Series<>();
-    thirdSeries.setName("3. selector for read, selector for write, processing in the common executor");
-    thirdSeries.getData().addAll(Arrays.asList(
-        new XYChart.Data<>(10, 0),
-        new XYChart.Data<>(20, 5),
-        new XYChart.Data<>(30, 20),
-        new XYChart.Data<>(40, 30)
-    ));
-
-    chart.getData().addAll(firstSeries, secondSeries, thirdSeries);
+  private static XYChart.Series<Number, Number> newSeries(String name, List<XYChart.Data<Number, Number>> data) {
+    XYChart.Series<Number, Number> series = new XYChart.Series<>();
+    series.setName(name);
+    series.getData().addAll(data);
+    return series;
   }
 
   private boolean checkIsEmpty(TextField field, String message) {
