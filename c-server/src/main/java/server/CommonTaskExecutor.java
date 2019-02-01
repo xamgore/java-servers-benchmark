@@ -2,8 +2,8 @@ package server;
 
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.protobuf.InvalidProtocolBufferException;
-import common.IntArrayOuterClass.IntArray;
-import common.SortingTask;
+import common.IntArrayOuterClass.ArrayMsg;
+import common.SortingUtil;
 import common.Stopwatch;
 
 import java.io.DataInputStream;
@@ -20,7 +20,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static common.IntArrayOuterClass.IntArray.parseFrom;
+import static common.IntArrayOuterClass.ArrayMsg.parseFrom;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 
@@ -136,8 +136,8 @@ public class CommonTaskExecutor implements Architecture {
           Stopwatch requestTime = new Stopwatch().start();
 
           Stopwatch sortingTime = new Stopwatch().start();
-          IntArray tasktoDo = parseFrom(buffer);
-          IntArray result = SortingTask.complete(tasktoDo);
+          ArrayMsg arrayToSort = parseFrom(buffer);
+          ArrayMsg result = SortingUtil.process(arrayToSort);
           sortingTime.stop();
 
           sendResponseExecutor.execute(sendResponse(result, requestTime, sortingTime));
@@ -148,7 +148,7 @@ public class CommonTaskExecutor implements Architecture {
       };
     }
 
-    private Runnable sendResponse(IntArray result, Stopwatch requestTime, Stopwatch sortingTime) {
+    private Runnable sendResponse(ArrayMsg result, Stopwatch requestTime, Stopwatch sortingTime) {
       return () -> {
         try {
           out.writeInt(result.getSerializedSize());

@@ -1,8 +1,8 @@
 package server;
 
 import com.google.common.util.concurrent.AtomicDouble;
-import common.IntArrayOuterClass.IntArray;
-import common.SortingTask;
+import common.IntArrayOuterClass.ArrayMsg;
+import common.SortingUtil;
 import common.Stopwatch;
 
 import java.io.DataInputStream;
@@ -96,8 +96,8 @@ public class OneThreadPerClient implements Architecture {
           requestStopwatch.start();
           {
             sortingStopwatch.start();
-            IntArray task = IntArray.parseFrom(buffer);
-            IntArray result = SortingTask.complete(task);
+            ArrayMsg arrayToSort = ArrayMsg.parseFrom(buffer);
+            ArrayMsg result = SortingUtil.process(arrayToSort);
             sortingStopwatch.stop();
 
             out.writeInt(result.getSerializedSize());

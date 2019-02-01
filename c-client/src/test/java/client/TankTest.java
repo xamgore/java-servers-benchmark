@@ -1,8 +1,8 @@
 package client;
 
-import common.IntArrayOuterClass.IntArray;
-import common.SortingTask;
-import common.SortingTask.Status;
+import common.IntArrayOuterClass.ArrayMsg;
+import common.SortingUtil;
+import common.SortingUtil.Status;
 import org.junit.Test;
 
 import java.io.DataInputStream;
@@ -12,25 +12,25 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.function.Function;
 
-import static common.SortingTask.Status.LENGTH_DIFFERS;
-import static common.SortingTask.Status.OK;
+import static common.SortingUtil.Status.LENGTH_DIFFERS;
+import static common.SortingUtil.Status.OK;
 import static org.junit.Assert.assertEquals;
 
 public class TankTest {
 
   @Test
   public void testStandardCase() throws InterruptedException {
-    Status status = runClientServer(SortingTask::complete);
+    Status status = runClientServer(SortingUtil::process);
     assertEquals(OK, status);
   }
 
   @Test
   public void testFailingCase() throws InterruptedException {
-    Status status = runClientServer(arr -> SortingTask.create(arr.getNumbersCount() - 1));
+    Status status = runClientServer(arr -> SortingUtil.create(arr.getNumbersCount() - 1));
     assertEquals(LENGTH_DIFFERS, status);
   }
 
-  private Status runClientServer(Function<IntArray, IntArray> serverProcess) throws InterruptedException {
+  private Status runClientServer(Function<ArrayMsg, ArrayMsg> serverProcess) throws InterruptedException {
     Config config = Config.create().setHostAddress("localhost").setRequestsNumber(1).build();
 
     // server
@@ -46,7 +46,7 @@ public class TankTest {
     return tank.getResultStatus();
   }
 
-  private void runServer(Function<IntArray, IntArray> process, Config config) {
+  private void runServer(Function<ArrayMsg, ArrayMsg> process, Config config) {
     try (
         ServerSocket server = new ServerSocket(config.port);
         Socket socket = server.accept();
@@ -59,10 +59,10 @@ public class TankTest {
       in.readFully(buffer);
       System.out.println("[Server] got: " + buffer.length);
 
-      IntArray task = IntArray.parseFrom(buffer);
+      ArrayMsg task = ArrayMsg.parseFrom(buffer);
       System.out.println("[Server] parsed");
 
-      IntArray result = process.apply(task);
+      ArrayMsg result = process.apply(task);
       System.out.println("[Server] processed");
 
       out.writeInt(result.getSerializedSize());

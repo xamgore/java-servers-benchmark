@@ -4,7 +4,7 @@ import client.Config;
 import client.Tank;
 import org.junit.Test;
 
-import static common.SortingTask.Status.OK;
+import static common.SortingUtil.Status.OK;
 import static org.junit.Assert.assertEquals;
 
 

@@ -1,8 +1,8 @@
 package client;
 
-import common.IntArrayOuterClass.IntArray;
-import common.SortingTask;
-import common.SortingTask.Status;
+import common.IntArrayOuterClass.ArrayMsg;
+import common.SortingUtil;
+import common.SortingUtil.Status;
 import common.Stopwatch;
 
 import java.io.DataInputStream;
@@ -11,8 +11,8 @@ import java.io.IOException;
 import java.net.Socket;
 import java.util.concurrent.CountDownLatch;
 
-import static common.SortingTask.Status.OK;
-import static common.SortingTask.checkIsCompleted;
+import static common.SortingUtil.Status.OK;
+import static common.SortingUtil.checkIsCompleted;
 
 // Runnable is for testing purpose
 public class Tank implements Runnable {
@@ -50,7 +50,7 @@ public class Tank implements Runnable {
         stopwatch.start();
 
         // create and send a task
-        IntArray task = SortingTask.create(config.arraySize);
+        ArrayMsg task = SortingUtil.create(config.arraySize);
         out.writeInt(task.getSerializedSize());
         task.writeTo(out);
         out.flush();
@@ -58,7 +58,7 @@ public class Tank implements Runnable {
         // receive an answer, check it
         byte[] buffer = new byte[in.readInt()];
         in.readFully(buffer);
-        resultStatus = checkIsCompleted(IntArray.parseFrom(buffer), config.arraySize);
+        resultStatus = checkIsCompleted(ArrayMsg.parseFrom(buffer), config.arraySize);
 
         stopwatch.stop();
         if (resultStatus != OK) return resultStatus;

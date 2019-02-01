@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package common;
 
-message IntArray {
+message ArrayMsg {
     // size is already passed
     repeated int32 numbers = 1;
 }

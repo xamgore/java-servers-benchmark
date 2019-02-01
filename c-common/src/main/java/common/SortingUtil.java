@@ -1,26 +1,25 @@
 package common;
 
 import com.google.common.primitives.Ints;
-import common.IntArrayOuterClass.IntArray;
+import common.IntArrayOuterClass.ArrayMsg;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
-public class SortingTask {
+public class SortingUtil {
 
   private static Random random = new Random();
 
 
-  public static IntArray create(int size) {
+  public static ArrayMsg create(int size) {
     List<Integer> randomInts = Ints.asList(random.ints(size).toArray());
-    return IntArray.newBuilder().addAllNumbers(randomInts).build();
+    return ArrayMsg.newBuilder().addAllNumbers(randomInts).build();
   }
 
-  public static IntArray complete(IntArray task) {
+  public static ArrayMsg process(ArrayMsg task) {
     List<Integer> numbers = task.getNumbersList();
     List<Integer> sorted = BubbleSort.process(numbers);
-    return IntArray.newBuilder().addAllNumbers(sorted).build();
+    return ArrayMsg.newBuilder().addAllNumbers(sorted).build();
   }
 
 
@@ -35,7 +34,7 @@ public class SortingTask {
     Status(int code) { this.code = code; }
   }
 
-  public static Status checkIsCompleted(IntArray task, int expectedArraySize) {
+  public static Status checkIsCompleted(ArrayMsg task, int expectedArraySize) {
     int[] numbers = Ints.toArray(task.getNumbersList());
 
     // test #1: same length
@@ -49,11 +48,6 @@ public class SortingTask {
     }
 
     return Status.OK;
-
-    // test #3: is sorted
-//    int[] sorted = numbers.clone();
-//    Arrays.sort(sorted);
-//    return Arrays.equals(numbers, sorted) ? Status.OK : Status.NOT_SORTED;
   }
 
 }
