@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class OneThreadPerClient implements Architecture {
 
   private final int port;
-  private final Set<ClientHolder> activeClients;
+  private final Set<Connection> activeClients;
   private AtomicDouble commonSortingTime;
   private AtomicDouble commonRequestTime;
   private AtomicInteger clientsProcessed;
@@ -54,9 +54,9 @@ public class OneThreadPerClient implements Architecture {
 
       while (!Thread.interrupted()) {
         try {
-          ClientHolder client = new ClientHolder(server.accept());
-          activeClients.add(client);
-          client.runningThread.start();
+          Connection connection = new Connection(server.accept());
+          activeClients.add(connection);
+          connection.runningThread.start();
         } catch (SocketTimeoutException ignored) {}
       }
     } catch (IOException e) {
@@ -69,14 +69,14 @@ public class OneThreadPerClient implements Architecture {
   }
 
 
-  private class ClientHolder implements Runnable {
+  private class Connection implements Runnable {
 
     final Socket socket;
     Thread runningThread;
     final Stopwatch sortingStopwatch;
     final Stopwatch requestStopwatch;
 
-    public ClientHolder(Socket socket) {
+    public Connection(Socket socket) {
       this.socket = socket;
       runningThread = new Thread(this);
       sortingStopwatch = new Stopwatch();
@@ -107,7 +107,9 @@ public class OneThreadPerClient implements Architecture {
           requestStopwatch.stop();
         }
       } catch (EOFException ignored) {
+        // client stopped sending requests
       } catch (IOException e) {
+        // todo: statistics is broken, must repeat
         e.printStackTrace();
       } finally {
         // remove self from the tracking list

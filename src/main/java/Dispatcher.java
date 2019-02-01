@@ -12,16 +12,13 @@ import java.util.concurrent.CountDownLatch;
 
 public class Dispatcher {
 
-  private static Retrofit retrofit =
-      new Retrofit.Builder()
-          .addConverterFactory(ScalarsConverterFactory.create())
-          .baseUrl("http://localhost:5400/").build();
+  private static Retrofit retrofit = init("localhost");
 
   private static final RemoteDispatcherService remoteDispatcher =
       retrofit.create(RemoteDispatcherService.class);
 
-  static public void init(String host) {
-    retrofit = new Retrofit.Builder()
+  public static Retrofit init(String host) {
+    return retrofit = new Retrofit.Builder()
         .addConverterFactory(ScalarsConverterFactory.create())
         .baseUrl("http://" + host + ":5400/").build();
   }

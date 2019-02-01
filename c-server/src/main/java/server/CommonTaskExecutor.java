@@ -27,8 +27,9 @@ import static java.util.concurrent.Executors.newSingleThreadExecutor;
 public class CommonTaskExecutor implements Architecture {
 
   private final int port;
-  private final Set<ClientHolder> activeClients;
-  private final Executor executor = newFixedThreadPool(4);
+  private final Set<Connection> activeClients;
+  private final Executor taskExecutor = newFixedThreadPool(4);
+
   private AtomicDouble commonSortingTime;
   private AtomicDouble commonRequestTime;
   private AtomicInteger clientsProcessed;
@@ -58,35 +59,43 @@ public class CommonTaskExecutor implements Architecture {
 
       while (!Thread.interrupted()) {
         try {
-          ClientHolder client = new ClientHolder(server.accept());
-          activeClients.add(client);
-          client.runningThread.start();
+          Connection connection = new Connection(server.accept());
+          activeClients.add(connection);
+          connection.runningThread.start();
         } catch (SocketTimeoutException ignored) {}
       }
+
     } catch (IOException e) {
+      // todo: statistics is broken, must repeat
       e.printStackTrace();
     }
 
+    stopActiveConnections();
+  }
+
+  private void stopActiveConnections() {
     synchronized (activeClients) {
       activeClients.forEach(client -> client.runningThread.interrupt());
     }
   }
 
 
-  private class ClientHolder implements Runnable {
+  private class Connection implements Runnable {
 
     final Socket socket;
     private final DataInputStream in;
     private final DataOutputStream out;
+
     Thread runningThread;
     ExecutorService sendResponseExecutor;
 
-    public ClientHolder(Socket socket) throws IOException {
+    public Connection(Socket socket) throws IOException {
+      sendResponseExecutor = newSingleThreadExecutor();
+      runningThread = new Thread(this);
+
       this.socket = socket;
       in = new DataInputStream(socket.getInputStream());
       out = new DataOutputStream(socket.getOutputStream());
-      runningThread = new Thread(this);
-      sendResponseExecutor = newSingleThreadExecutor();
     }
 
     @Override public void run() {
@@ -94,20 +103,20 @@ public class CommonTaskExecutor implements Architecture {
       commonRequestTime = new AtomicDouble();
       clientsProcessed = new AtomicInteger();
 
-
       try {
         // client makes a finite number of requests
         while (!Thread.interrupted()) {
           byte[] buffer = new byte[in.readInt()];
           in.readFully(buffer);
 
-          executor.execute(solveTask(buffer));
+          taskExecutor.execute(processMessage(buffer));
         }
       } catch (EOFException ignored) {
+        // client stopped sending requests
       } catch (IOException e) {
+        // todo: statistics is broken, must repeat
         e.printStackTrace();
       } finally {
-        // remove self from the tracking list
         activeClients.remove(this);
 
         try {
@@ -115,23 +124,23 @@ public class CommonTaskExecutor implements Architecture {
           socket.close();
         } catch (IOException e) {
           e.printStackTrace();
+        } finally {
+          clientsProcessed.incrementAndGet();
         }
-
-        clientsProcessed.incrementAndGet();
       }
     }
 
-    private Runnable solveTask(byte[] buffer) {
+    private Runnable processMessage(byte[] buffer) {
       return () -> {
         try {
-          Stopwatch requestStopwatch = new Stopwatch().start();
+          Stopwatch requestTime = new Stopwatch().start();
 
-          Stopwatch sortingStopwatch = new Stopwatch().start();
-          IntArray task = parseFrom(buffer);
-          IntArray result = SortingTask.complete(task);
-          sortingStopwatch.stop();
+          Stopwatch sortingTime = new Stopwatch().start();
+          IntArray tasktoDo = parseFrom(buffer);
+          IntArray result = SortingTask.complete(tasktoDo);
+          sortingTime.stop();
 
-          sendResponseExecutor.execute(sendResponse(result, requestStopwatch, sortingStopwatch));
+          sendResponseExecutor.execute(sendResponse(result, requestTime, sortingTime));
         } catch (InvalidProtocolBufferException e) {
           e.printStackTrace();
         }
@@ -139,7 +148,7 @@ public class CommonTaskExecutor implements Architecture {
       };
     }
 
-    private Runnable sendResponse(IntArray result, Stopwatch requestStopwatch, Stopwatch sortingStopwatch) {
+    private Runnable sendResponse(IntArray result, Stopwatch requestTime, Stopwatch sortingTime) {
       return () -> {
         try {
           out.writeInt(result.getSerializedSize());
@@ -148,10 +157,10 @@ public class CommonTaskExecutor implements Architecture {
         } catch (IOException e) {
           e.printStackTrace();
         } finally {
-          requestStopwatch.stop();
+          requestTime.stop();
 
-          commonRequestTime.addAndGet(requestStopwatch.getDuration());
-          commonSortingTime.addAndGet(sortingStopwatch.getDuration());
+          commonRequestTime.addAndGet(requestTime.getDuration());
+          commonSortingTime.addAndGet(sortingTime.getDuration());
         }
       };
     }
