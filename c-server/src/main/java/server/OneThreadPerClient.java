@@ -1,6 +1,5 @@
 package server;
 
-import com.google.common.util.concurrent.AtomicDouble;
 import common.IntArrayOuterClass.ArrayMsg;
 import common.SortingUtil;
 import common.Stopwatch;
@@ -11,60 +10,54 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketTimeoutException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
-public class OneThreadPerClient implements Architecture {
+import static common.IntArrayOuterClass.ArrayMsg.parseFrom;
 
-  private final int port;
+public class OneThreadPerClient extends Architecture {
+
+  private ServerSocket serverSocket;
   private final Set<Connection> activeClients;
-  private AtomicDouble commonSortingTime;
-  private AtomicDouble commonRequestTime;
-  private AtomicInteger clientsProcessed;
+  private boolean forceStopped = false;
+
 
   public OneThreadPerClient(int port) {
-    this.port = port;
+    super(port);
     this.activeClients = Collections.synchronizedSet(new HashSet<>());
   }
 
-
-  @Override public double getTotalSortingTime() {
-    return commonSortingTime.get();
+  public void start() throws IOException {
+    serverSocket = new ServerSocket(port);
+    thread.start();
   }
 
-  @Override public double getTotalRequestTime() {
-    return commonRequestTime.get();
-  }
+  public void stop() throws IOException {
+    forceStopped = true;
+    serverSocket.close();
+    thread.interrupt();
 
-  @Override public int getClientsNumberProcessed() {
-    return clientsProcessed.get();
+    synchronized (activeClients) {
+      // close sockets, threads will be closed by themselves
+      activeClients.forEach(client -> closeSocket(client.socket));
+    }
   }
 
 
   @Override public void run() {
-    commonSortingTime = new AtomicDouble();
-    commonRequestTime = new AtomicDouble();
-    clientsProcessed = new AtomicInteger();
-
-    try (ServerSocket server = new ServerSocket(port)) {
-      server.setSoTimeout(100);
-
-      while (!Thread.interrupted()) {
-        try {
-          Connection connection = new Connection(server.accept());
-          activeClients.add(connection);
-          connection.runningThread.start();
-        } catch (SocketTimeoutException ignored) {}
+    try {
+      while (!(Thread.interrupted() || serverSocket.isClosed())) {
+        Connection connection = new Connection(serverSocket.accept());
+        activeClients.add(connection);
+        connection.myThread.start();
       }
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-
-    synchronized (activeClients) {
-      activeClients.forEach(client -> client.runningThread.interrupt());
+    } catch (IOException ex) {
+      if (!(forceStopped && serverSocket.isClosed())) {
+        // this will reject already collected statistics
+        facedIOException = true;
+        ex.printStackTrace();
+      }
     }
   }
 
@@ -72,54 +65,36 @@ public class OneThreadPerClient implements Architecture {
   private class Connection implements Runnable {
 
     final Socket socket;
-    Thread runningThread;
+    final DataInputStream in;
+    final DataOutputStream out;
     final Stopwatch sortingStopwatch;
     final Stopwatch requestStopwatch;
+    final Thread myThread;
 
-    public Connection(Socket socket) {
+    public Connection(Socket socket) throws IOException {
       this.socket = socket;
-      runningThread = new Thread(this);
+      in = new DataInputStream(socket.getInputStream());
+      out = new DataOutputStream(socket.getOutputStream());
       sortingStopwatch = new Stopwatch();
       requestStopwatch = new Stopwatch();
+      myThread = new Thread(this);
     }
 
     @Override public void run() {
-      try (
-          DataInputStream in = new DataInputStream(socket.getInputStream());
-          DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-      ) {
+      try {
         // client makes a finite number of requests
         while (!Thread.interrupted()) {
-          byte[] buffer = new byte[in.readInt()];
-          in.readFully(buffer);
-
-          requestStopwatch.start();
-          {
-            sortingStopwatch.start();
-            ArrayMsg arrayToSort = ArrayMsg.parseFrom(buffer);
-            ArrayMsg result = SortingUtil.process(arrayToSort);
-            sortingStopwatch.stop();
-
-            out.writeInt(result.getSerializedSize());
-            result.writeTo(out);
-            out.flush();
-          }
-          requestStopwatch.stop();
+          byte[] buffer = readMsg();
+          if (buffer == null) break;
+          processMsg(buffer);
         }
-      } catch (EOFException ignored) {
-        // client stopped sending requests
       } catch (IOException e) {
-        // todo: statistics is broken, must repeat
+        facedIOException = true;
         e.printStackTrace();
       } finally {
         // remove self from the tracking list
         activeClients.remove(this);
-
-        try {
-          socket.close();
-        } catch (IOException e) {
-          e.printStackTrace();
-        }
+        closeSocket(socket);
 
         commonRequestTime.addAndGet(requestStopwatch.getDuration());
         commonSortingTime.addAndGet(sortingStopwatch.getDuration());
@@ -127,6 +102,51 @@ public class OneThreadPerClient implements Architecture {
       }
     }
 
+    private void processMsg(byte[] buffer) throws IOException {
+      requestStopwatch.start();
+      sortingStopwatch.start();
+      ArrayMsg result = SortingUtil.sort(parseFrom(buffer));
+      sortingStopwatch.stop();
+
+      writeMsg(result);
+      requestStopwatch.stop();
+    }
+
+    int readMsgSize() throws IOException {
+      try {
+        return in.readInt();
+      } catch (EOFException ignored) {
+        return -1;
+      }
+    }
+
+    byte[] readMsg() throws IOException {
+      byte[] buffer = null;
+      int msgSize = readMsgSize();
+
+      if (msgSize >= 0) {
+        buffer = new byte[msgSize];
+        in.readFully(buffer);
+      }
+
+      return buffer;
+    }
+
+    private void writeMsg(ArrayMsg msg) throws IOException {
+      out.writeInt(msg.getSerializedSize());
+      msg.writeTo(out);
+      out.flush();
+    }
+
+  }
+
+  private void closeSocket(Socket socket) {
+    try {
+      socket.close();
+    } catch (IOException ex) {
+      facedIOException = true;
+      ex.printStackTrace();
+    }
   }
 
 }

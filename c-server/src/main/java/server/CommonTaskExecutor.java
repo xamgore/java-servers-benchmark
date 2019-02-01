@@ -1,6 +1,5 @@
 package server;
 
-import com.google.common.util.concurrent.AtomicDouble;
 import com.google.protobuf.InvalidProtocolBufferException;
 import common.IntArrayOuterClass.ArrayMsg;
 import common.SortingUtil;
@@ -12,70 +11,46 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketTimeoutException;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static common.IntArrayOuterClass.ArrayMsg.parseFrom;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 
-public class CommonTaskExecutor implements Architecture {
+public class CommonTaskExecutor extends Architecture {
 
-  private final int port;
-  private final Set<Connection> activeClients;
-  private final Executor taskExecutor = newFixedThreadPool(4);
-
-  private AtomicDouble commonSortingTime;
-  private AtomicDouble commonRequestTime;
-  private AtomicInteger clientsProcessed;
-
+  private ServerSocket serverSocket;
+  private boolean forceStopped = false;
+  private final ExecutorService taskExecutor = newFixedThreadPool(4);
 
   public CommonTaskExecutor(int port) {
-    this.port = port;
-    this.activeClients = Collections.synchronizedSet(new HashSet<>());
+    super(port);
   }
 
-  @Override public double getTotalSortingTime() {
-    return commonSortingTime.get();
+  public void start() throws IOException {
+    serverSocket = new ServerSocket(port);
+    thread.start();
   }
 
-  @Override public double getTotalRequestTime() {
-    return commonRequestTime.get();
-  }
-
-  @Override public int getClientsNumberProcessed() {
-    return clientsProcessed.get();
+  public void stop() throws IOException {
+    forceStopped = true;
+    serverSocket.close();
+    thread.interrupt();
+    taskExecutor.shutdown();
   }
 
 
   @Override public void run() {
-    try (ServerSocket server = new ServerSocket(port)) {
-      server.setSoTimeout(100);
-
-      while (!Thread.interrupted()) {
-        try {
-          Connection connection = new Connection(server.accept());
-          activeClients.add(connection);
-          connection.runningThread.start();
-        } catch (SocketTimeoutException ignored) {}
+    try {
+      while (!(Thread.interrupted() || serverSocket.isClosed())) {
+        new Connection(serverSocket.accept()).myThread.start();
       }
-
-    } catch (IOException e) {
-      // todo: statistics is broken, must repeat
-      e.printStackTrace();
-    }
-
-    stopActiveConnections();
-  }
-
-  private void stopActiveConnections() {
-    synchronized (activeClients) {
-      activeClients.forEach(client -> client.runningThread.interrupt());
+    } catch (IOException ex) {
+      if (!(forceStopped && serverSocket.isClosed())) {
+        // this will reject already collected statistics
+        facedIOException = true;
+        ex.printStackTrace();
+      }
     }
   }
 
@@ -83,88 +58,100 @@ public class CommonTaskExecutor implements Architecture {
   private class Connection implements Runnable {
 
     final Socket socket;
-    private final DataInputStream in;
-    private final DataOutputStream out;
-
-    Thread runningThread;
-    ExecutorService sendResponseExecutor;
+    final DataInputStream in;
+    final DataOutputStream out;
+    final ExecutorService sendResponseExecutor;
+    final Thread myThread;
 
     public Connection(Socket socket) throws IOException {
-      sendResponseExecutor = newSingleThreadExecutor();
-      runningThread = new Thread(this);
-
       this.socket = socket;
       in = new DataInputStream(socket.getInputStream());
       out = new DataOutputStream(socket.getOutputStream());
+      sendResponseExecutor = newSingleThreadExecutor();
+      myThread = new Thread(this);
     }
 
     @Override public void run() {
-      commonSortingTime = new AtomicDouble();
-      commonRequestTime = new AtomicDouble();
-      clientsProcessed = new AtomicInteger();
-
       try {
         // client makes a finite number of requests
         while (!Thread.interrupted()) {
-          byte[] buffer = new byte[in.readInt()];
-          in.readFully(buffer);
-
-          taskExecutor.execute(processMessage(buffer));
+          byte[] buffer = readMsg();
+          if (buffer == null) break;
+          taskExecutor.execute(processMsg(buffer));
         }
-      } catch (EOFException ignored) {
-        // client stopped sending requests
       } catch (IOException e) {
-        // todo: statistics is broken, must repeat
+        facedIOException = true;
         e.printStackTrace();
       } finally {
-        activeClients.remove(this);
-
-        try {
-          this.sendResponseExecutor.shutdown();
-          socket.close();
-        } catch (IOException e) {
-          e.printStackTrace();
-        } finally {
-          clientsProcessed.incrementAndGet();
-        }
+        closeSocket(socket);
+        this.sendResponseExecutor.shutdown();
       }
     }
 
-    private Runnable processMessage(byte[] buffer) {
+    private Runnable processMsg(byte[] buffer) {
       return () -> {
         try {
           Stopwatch requestTime = new Stopwatch().start();
-
           Stopwatch sortingTime = new Stopwatch().start();
-          ArrayMsg arrayToSort = parseFrom(buffer);
-          ArrayMsg result = SortingUtil.process(arrayToSort);
+          ArrayMsg result = SortingUtil.sort(parseFrom(buffer));
           sortingTime.stop();
 
           sendResponseExecutor.execute(sendResponse(result, requestTime, sortingTime));
         } catch (InvalidProtocolBufferException e) {
+          facedIOException = true;
           e.printStackTrace();
         }
-
       };
     }
 
     private Runnable sendResponse(ArrayMsg result, Stopwatch requestTime, Stopwatch sortingTime) {
       return () -> {
         try {
-          out.writeInt(result.getSerializedSize());
-          result.writeTo(out);
-          out.flush();
+          writeMsg(result);
         } catch (IOException e) {
+          facedIOException = true;
           e.printStackTrace();
         } finally {
           requestTime.stop();
-
-          commonRequestTime.addAndGet(requestTime.getDuration());
-          commonSortingTime.addAndGet(sortingTime.getDuration());
         }
       };
     }
 
+    int readMsgSize() throws IOException {
+      try {
+        return in.readInt();
+      } catch (EOFException ignored) {
+        return -1;
+      }
+    }
+
+    byte[] readMsg() throws IOException {
+      byte[] buffer = null;
+      int msgSize = readMsgSize();
+
+      if (msgSize >= 0) {
+        buffer = new byte[msgSize];
+        in.readFully(buffer);
+      }
+
+      return buffer;
+    }
+
+    private void writeMsg(ArrayMsg msg) throws IOException {
+      out.writeInt(msg.getSerializedSize());
+      msg.writeTo(out);
+      out.flush();
+    }
+
+  }
+
+  private void closeSocket(Socket socket) {
+    try {
+      socket.close();
+    } catch (IOException ex) {
+      facedIOException = true;
+      ex.printStackTrace();
+    }
   }
 
 }

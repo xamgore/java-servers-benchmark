@@ -4,19 +4,22 @@ import client.Config;
 import client.Tank;
 import org.junit.Test;
 
+import java.io.IOException;
+
 import static common.SortingUtil.Status.OK;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 
 public class OneThreadPerClientTest {
 
   @Test
-  public void testWithOneClient() throws InterruptedException {
-    Config config = Config.create().setHostAddress("localhost").setRequestsNumber(10).build();
+  public void testWithOneClient() throws InterruptedException, IOException {
+    Config config = Config.create().setHostAddress("localhost").setRequestsNumber(10).setArraySize(100).build();
 
     // server
-    Thread server = new Thread(new OneThreadPerClient(config.port));
+    Architecture server = new OneThreadPerClient(config.port);
     server.start();
+
     Thread.sleep(1000);
 
     // client
@@ -32,10 +35,8 @@ public class OneThreadPerClientTest {
     thread1.join();
     thread2.join();
 
-    System.out.println("[Test] tanks are closed");
-    server.interrupt();
-    System.out.println("[Test] server interrupted");
-    server.join();
+    server.stop();
+    assertFalse(server.hasFacedIOException());
     System.out.println("[Test] server stopped");
 
     assertEquals(OK, tank1.getResultStatus());

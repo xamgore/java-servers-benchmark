@@ -16,7 +16,7 @@ public class SortingUtil {
     return ArrayMsg.newBuilder().addAllNumbers(randomInts).build();
   }
 
-  public static ArrayMsg process(ArrayMsg task) {
+  public static ArrayMsg sort(ArrayMsg task) {
     List<Integer> numbers = task.getNumbersList();
     List<Integer> sorted = BubbleSort.process(numbers);
     return ArrayMsg.newBuilder().addAllNumbers(sorted).build();

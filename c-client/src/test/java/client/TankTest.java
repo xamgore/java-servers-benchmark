@@ -20,7 +20,7 @@ public class TankTest {
 
   @Test
   public void testStandardCase() throws InterruptedException {
-    Status status = runClientServer(SortingUtil::process);
+    Status status = runClientServer(SortingUtil::sort);
     assertEquals(OK, status);
   }
 
