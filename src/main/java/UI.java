@@ -19,7 +19,10 @@ public class UI {
   private static final Dispatcher dispatcher = new Dispatcher();
 
   @FXML
-  private LineChart<Number, Number> chart;
+  private LineChart<Number, Number> serverChart;
+
+  @FXML
+  private LineChart<Number, Number> clientChart;
 
   @FXML
   private Button submitButton;
@@ -86,17 +89,20 @@ public class UI {
     dispatcher.stopRemoteServer();
 
 
-    chart.getData().clear();
+    clientChart.getData().clear();
 
-    chart.getData().add(newSeries(results,
+    clientChart.getData().add(newSeries(results,
         "client request avg time",
         res -> res.clientAverageTimePerRequest));
 
-    chart.getData().add(newSeries(results,
+
+    serverChart.getData().clear();
+
+    serverChart.getData().add(newSeries(results,
         "server request avg time",
         res -> res.serverAverageRequestTime));
 
-    chart.getData().add(newSeries(results,
+    serverChart.getData().add(newSeries(results,
         "server sorting avg time",
         res -> res.serverAverageSortingTime));
   }
