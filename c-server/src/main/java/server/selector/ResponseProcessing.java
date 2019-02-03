@@ -1,4 +1,4 @@
-package server;
+package server.selector;
 
 import common.IntArrayOuterClass.ArrayMsg;
 

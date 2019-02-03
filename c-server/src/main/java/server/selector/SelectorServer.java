@@ -1,4 +1,6 @@
-package server;
+package server.selector;
+
+import server.Architecture;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;

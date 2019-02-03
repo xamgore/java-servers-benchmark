@@ -1,4 +1,4 @@
-package server;
+package server.selector;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import common.IntArrayOuterClass;
