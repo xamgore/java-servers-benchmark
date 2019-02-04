@@ -108,19 +108,15 @@ public class Duration {
   }
 
   public double avgRequestDuration() {
-    return clients.stream()
-        .flatMap(client -> client.list.stream())
-        .mapToLong(Timer::getRequestDuration)
-        .average()
-        .orElse(0);
+    return clients.stream().mapToDouble(client ->
+        client.list.stream().mapToLong(Timer::getRequestDuration).average().orElse(0)
+    ).average().orElse(0);
   }
 
   public double avgSortingDuration() {
-    return clients.stream()
-        .flatMap(client -> client.list.stream())
-        .mapToLong(Timer::getSortingDuration)
-        .average()
-        .orElse(0);
+    return clients.stream().mapToDouble(client ->
+        client.list.stream().mapToLong(Timer::getSortingDuration).average().orElse(0)
+    ).average().orElse(0);
   }
 
 }
