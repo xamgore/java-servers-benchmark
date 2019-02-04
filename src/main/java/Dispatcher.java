@@ -21,10 +21,19 @@ public class Dispatcher {
     List<AttackResult> results = new ArrayList<>();
 
     for (AttackConfig configWithChangingParameter : config) {
-      // todo: three attacks if errors happened
-      startRemoteServer(config.host, config.getArchitecture());
-      results.add(doAttackAndGatherStatistics(configWithChangingParameter));
-      stopRemoteServer(config.host);
+      for (int attempts = 0; attempts < 3; attempts++) {
+        startRemoteServer(config.host, config.getArchitecture());
+        AttackResult result = doAttackAndGatherStatistics(configWithChangingParameter);
+        stopRemoteServer(config.host);
+
+        if (result.hasFailed) {
+          continue;
+        } else {
+          results.add(result);
+        }
+
+        break;
+      }
     }
 
     return results;
