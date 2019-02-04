@@ -1,9 +1,10 @@
 package client;
 
+import common.Duration;
+import common.Duration.Timer;
 import common.IntArrayOuterClass.ArrayMsg;
 import common.SortingUtil;
 import common.SortingUtil.Status;
-import common.Stopwatch;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -21,7 +22,7 @@ public class Tank implements Runnable {
   private Status resultStatus;
   private final Config config;
   private final CountDownLatch latch;
-  private Stopwatch stopwatch;
+  private final Duration.Client clientDuration = new Duration.Client();
 
   public Tank(Config config) {
     this.config = config;
@@ -35,7 +36,6 @@ public class Tank implements Runnable {
 
   @Override public void run() {
     if (latch != null) latch.countDown();
-    stopwatch = new Stopwatch();
     resultStatus = createTaskAndCheckAnswers();
   }
 
@@ -47,7 +47,7 @@ public class Tank implements Runnable {
         DataInputStream in = new DataInputStream(socket.getInputStream());
     ) {
       for (requestNum = 0; requestNum < config.requestsNumber; requestNum++) {
-        stopwatch.start();
+        Timer timer = clientDuration.newTimer().trackRequest();
 
         // create and send a task
         ArrayMsg task = SortingUtil.create(config.arraySize);
@@ -60,10 +60,9 @@ public class Tank implements Runnable {
         in.readFully(buffer);
         resultStatus = checkIsCompleted(ArrayMsg.parseFrom(buffer), config.arraySize);
 
-        stopwatch.stop();
+        timer.breakRequest();
         if (resultStatus != OK) return resultStatus;
 
-        // todo: should catch a spurious wakeup?
         Thread.sleep(config.sleepDeltaMillis);
       }
 
@@ -83,8 +82,8 @@ public class Tank implements Runnable {
     return resultStatus;
   }
 
-  public double getAverageTimePerRequest() {
-    return stopwatch.getDuration();
+  public Duration.Client getClientDuration() {
+    return clientDuration;
   }
 
 }

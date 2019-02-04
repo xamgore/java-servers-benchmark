@@ -83,11 +83,7 @@ public class UI {
         architectureChoiceBox.getItems().indexOf(architectureChoiceBox.getValue()),
         variableParameterChoiceBox.getItems().indexOf(variableParameterChoiceBox.getValue()));
 
-
-    Dispatcher.init(hostField.getText());
-    dispatcher.startRemoteServer(config.getArchitecture());
     List<AttackResult> results = dispatcher.attack(config);
-    dispatcher.stopRemoteServer();
 
 
     clientChart.getData().clear();

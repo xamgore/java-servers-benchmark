@@ -1,5 +1,6 @@
 package server;
 
+import common.Duration;
 import fi.iki.elonen.NanoHTTPD;
 
 import java.io.IOException;
@@ -11,8 +12,7 @@ public class Main extends NanoHTTPD {
 
   public static final int SERVER_PORT = 5400;
 
-  private Thread serverInstance;
-  private Architecture architecture;
+  private Architecture serverInstance;
 
   private Main(int port) {
     super(port);
@@ -52,30 +52,38 @@ public class Main extends NanoHTTPD {
     System.out.printf("/start arch=%d\n", architectureIdx);
     stopServer();
 
-    architecture = architectureIdx == 0
+    serverInstance = architectureIdx == 0
         ? new OneThreadPerClient(8080)
         : new CommonTaskExecutor(8080);
 
-    serverInstance = new Thread(architecture);
-    serverInstance.start();
-    System.out.printf("%s was started\n", architecture.getClass().getSimpleName());
+    try {
+      serverInstance.start();
+      System.out.printf("%s started\n", serverInstance.getClass().getSimpleName());
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
   }
 
   private void stopServer() {
     System.out.println("/stop the current server");
 
     try {
-      if (serverInstance == null) return;
-      serverInstance.interrupt();
-      serverInstance.join();
-    } catch (InterruptedException e) {
+      if (serverInstance != null)
+        serverInstance.stop();
+    } catch (IOException e) {
       e.printStackTrace();
     }
   }
 
   private Response getStats() {
-    if (architecture == null) return null;
-    String msg = String.format("%.2f:%.2f", architecture.getAvgRequestTime(), architecture.getAvgSortingTime());
+    if (serverInstance == null) return null;
+
+    Duration timing = serverInstance.commonDuration.remainOnlyHotDurations();
+
+    String msg = String.format("%d:%.2f:%.2f",
+        serverInstance.hasFacedIOException() ? 1 : 0,
+        timing.avgRequestDuration(), timing.avgSortingDuration());
+
     System.out.println(msg);
     return newFixedLengthResponse(msg);
   }

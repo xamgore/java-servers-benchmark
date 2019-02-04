@@ -1,9 +1,5 @@
 import client.Tank;
-import retrofit2.Call;
-import retrofit2.Retrofit;
-import retrofit2.converter.scalars.ScalarsConverterFactory;
-import retrofit2.http.GET;
-import retrofit2.http.Query;
+import common.Duration;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -12,60 +8,23 @@ import java.util.concurrent.CountDownLatch;
 
 public class Dispatcher {
 
-  private static Retrofit retrofit = init("localhost");
+  private void stopRemoteServer(String host) throws IOException {
+    RemoteDispatcherService.Factory.create(host).stop().execute();
+  }
 
-  private static final RemoteDispatcherService remoteDispatcher =
-      retrofit.create(RemoteDispatcherService.class);
-
-  public static Retrofit init(String host) {
-    return retrofit = new Retrofit.Builder()
-        .addConverterFactory(ScalarsConverterFactory.create())
-        .baseUrl("http://" + host + ":5400/").build();
+  private void startRemoteServer(String host, int architectureIdx) throws IOException {
+    RemoteDispatcherService.Factory.create(host).start(architectureIdx).execute();
   }
 
 
-  public void stopRemoteServer() throws IOException {
-    remoteDispatcher.stop().execute();
-  }
-
-  public void startRemoteServer(int architectureIdx) throws IOException {
-    remoteDispatcher.start(architectureIdx).execute();
-  }
-
-  private AttackResult setServerStats(AttackResult result) {
-    result.serverAverageRequestTime = -100; // errnous values
-    result.serverAverageSortingTime = -100;
-
-    try {
-      String twoNumbersWithDelimeter = remoteDispatcher.stats().execute().body();
-      if (twoNumbersWithDelimeter == null) return result;
-
-      String[] numbers = twoNumbersWithDelimeter.split(":");
-      result.serverAverageRequestTime = Double.parseDouble(numbers[0]);
-      result.serverAverageSortingTime = Double.parseDouble(numbers[1]);
-    } catch (IOException ignored) {}
-
-    return result;
-  }
-
-  public interface RemoteDispatcherService {
-
-    @GET("/stop")
-    Call<Void> stop();
-
-    @GET("/start")
-    Call<Void> start(@Query("arch") int archIdx);
-
-    @GET("/stats")
-    Call<String> stats();
-
-  }
-
-  public List<AttackResult> attack(AttackConfig setup) {
+  public List<AttackResult> attack(AttackConfig config) throws IOException {
     List<AttackResult> results = new ArrayList<>();
 
-    for (AttackConfig config : setup) {
-      results.add(doAttackAndGatherStatistics(config));
+    for (AttackConfig configWithChangingParameter : config) {
+      // todo: three attacks if errors happened
+      startRemoteServer(config.host, config.getArchitecture());
+      results.add(doAttackAndGatherStatistics(configWithChangingParameter));
+      stopRemoteServer(config.host);
     }
 
     return results;
@@ -77,15 +36,33 @@ public class Dispatcher {
     List<Tank> tanks = new ArrayList<>(clientsNumber);
 
     AttackResult result = new AttackResult(config.getVaryingParameter());
-    result.clientAverageTimePerRequest = runNThreads(config, threads, tanks);
-    return setServerStats(result);
+    Duration clientDuration = runNThreads(config, threads, tanks);
+    result.clientAverageTimePerRequest = clientDuration.avgRequestDuration();
+
+    return applyServerStats(config.host, result);
+  }
+
+  private AttackResult applyServerStats(String host, AttackResult result) {
+    try {
+      String twoNumbersWithDelimeter =
+          RemoteDispatcherService.Factory.create(host).stats().execute().body();
+
+      if (twoNumbersWithDelimeter == null) return result;
+
+      String[] numbers = twoNumbersWithDelimeter.split(":");
+      result.hasFailed = Integer.parseInt(numbers[0]) == 1;
+      result.serverAverageRequestTime = Double.parseDouble(numbers[1]);
+      result.serverAverageSortingTime = Double.parseDouble(numbers[2]);
+    } catch (IOException ignored) {}
+
+    return result;
   }
 
   /**
    * @return the average time of a request processed on a client.
-   * avg [(start client - shutdown client) / requests per client]
+   * avg [(client start - client shutdown) / requests per client]
    */
-  private double runNThreads(AttackConfig config, List<Thread> threads, List<Tank> tanks) {
+  private Duration runNThreads(AttackConfig config, List<Thread> threads, List<Tank> tanks) {
     CountDownLatch latch = new CountDownLatch(config.getClientsNumber());
 
     for (int idx = 0; idx < config.getClientsNumber(); idx++) {
@@ -105,8 +82,9 @@ public class Dispatcher {
       }
     });
 
-    return tanks.stream().mapToDouble(Tank::getAverageTimePerRequest).sum() / config.getClientsNumber();
-//        .filter(t -> (t.getResultStatus() != OK) || (t.getRequestNum() != config.getRequestsNumber())).count();
+    Duration duration = new Duration();
+    tanks.forEach(tank -> duration.clients.add(tank.getClientDuration()));
+    return duration.remainOnlyHotDurations();
   }
 
 }
