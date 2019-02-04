@@ -2,6 +2,7 @@ package server;
 
 import common.Duration;
 import fi.iki.elonen.NanoHTTPD;
+import server.selector.SelectorServer;
 
 import java.io.IOException;
 import java.util.Map;
@@ -52,9 +53,11 @@ public class Main extends NanoHTTPD {
     System.out.printf("/start arch=%d\n", architectureIdx);
     stopServer();
 
-    serverInstance = architectureIdx == 0
-        ? new OneThreadPerClient(8080)
-        : new CommonTaskExecutor(8080);
+    final int port = 8080;
+    serverInstance
+        = architectureIdx == 0 ? new OneThreadPerClient(port)
+        : architectureIdx == 1 ? new CommonTaskExecutor(port)
+        : new SelectorServer(port);
 
     try {
       serverInstance.start();
@@ -82,7 +85,8 @@ public class Main extends NanoHTTPD {
 
     String msg = String.format("%d:%.2f:%.2f",
         serverInstance.hasFacedIOException() ? 1 : 0,
-        timing.avgRequestDuration(), timing.avgSortingDuration());
+        timing.avgRequestDuration(),
+        timing.avgSortingDuration());
 
     System.out.println(msg);
     return newFixedLengthResponse(msg);
