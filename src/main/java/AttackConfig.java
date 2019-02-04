@@ -57,6 +57,7 @@ public class AttackConfig implements Iterable<AttackConfig> {
 
   public Config toClientConfig() {
     return Config.create()
+        .setHostAddress(host)
         .setRequestsNumber(requestsNumber)
         .setArraySize(getArraySize())
         .setSleepDelta(getSleepDelta())
