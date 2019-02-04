@@ -3,6 +3,7 @@ plugins {
     id 'java-library'
     id 'idea'
     id 'com.google.protobuf' version '0.8.8'
+    id "com.github.johnrengelman.shadow"
 }
 
 apply plugin: 'com.google.protobuf'
@@ -25,4 +26,17 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
     api group: 'com.google.protobuf', name: 'protobuf-java', version: '3.6.1'
     compile 'com.google.guava:guava:27.0.1-jre'
+}
+
+// Output to build/libs/server.jar
+shadowJar {
+    baseName = 'server'
+    classifier = null
+    version = null
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'server.Main'
+    }
 }
