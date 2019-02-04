@@ -72,6 +72,7 @@ public class UI {
 
 
     AttackConfig config = new AttackConfig(
+        hostField.getText(),
         numberOfRequestsField.getText(),
         sleepDeltaField.getText(),
         numberOfClientsField.getText(),

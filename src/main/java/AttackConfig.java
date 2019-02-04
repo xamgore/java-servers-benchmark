@@ -10,6 +10,7 @@ public class AttackConfig implements Iterable<AttackConfig> {
   private static final int CLIENTS_PARAM = 2;
   private static final int SIZE_PARAM = 1;
 
+  public final String host;
   private int requestsNumber;
   private int clientsNumber;
   private int arraySize;
@@ -20,7 +21,9 @@ public class AttackConfig implements Iterable<AttackConfig> {
   private int param;
   private int paramValue;
 
-  public AttackConfig(String requestsNumber, String sleepDelta, String clientsNumber, String arraySize, String from, String to, String step, int architecture, int param) {
+  public AttackConfig(String host, String requestsNumber, String sleepDelta, String clientsNumber,
+                      String arraySize, String from, String to, String step, int architecture, int param) {
+    this.host = host;
     this.paramValue = parseUnsignedInt(from);
     this.sleepDelta = parseUnsignedInt(sleepDelta);
     this.requestsNumber = parseUnsignedInt(requestsNumber);
