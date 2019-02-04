@@ -38,10 +38,10 @@ public class SelectorServer extends Architecture {
     requestsProcessing.close();
     responseProcessing.close();
     thread.interrupt();
+    facedIOException |= requestsProcessing.facedIOException || responseProcessing.facedIOException;
   }
 
   @Override public void run() {
-    System.out.println("[Server] run");
     try {
       while (!Thread.interrupted() && serverSocketChannel.isOpen()) {
         requestsProcessing.addChannel(serverSocketChannel.accept());
