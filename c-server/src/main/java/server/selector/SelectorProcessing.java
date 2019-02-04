@@ -1,5 +1,6 @@
 package server.selector;
 
+import common.Duration.Timer;
 import common.IntArrayOuterClass.ArrayMsg;
 
 import java.io.IOException;
@@ -15,13 +16,15 @@ public abstract class SelectorProcessing implements Runnable {
 
     SocketChannel channel;
     ArrayMsg msg;
+    Timer timer;
 
     QueElement(SocketChannel channel) {
       this.channel = channel;
     }
 
-    QueElement(SocketChannel channel, ArrayMsg msg) {
+    QueElement(SocketChannel channel, ArrayMsg msg, Timer timer) {
       this.channel = channel;
+      this.timer = timer;
       this.msg = msg;
     }
 

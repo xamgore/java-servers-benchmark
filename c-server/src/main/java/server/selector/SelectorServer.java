@@ -11,11 +11,12 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 
 public class SelectorServer extends Architecture {
 
-  protected boolean forceStopped = false;
-  private ServerSocketChannel serverSocketChannel;
   private final ExecutorService taskExecutor = newFixedThreadPool(4);
   private final ResponseProcessing responseProcessing = new ResponseProcessing();
-  private final RequestsProcessing requestsProcessing = new RequestsProcessing(taskExecutor, responseProcessing);
+  private final RequestsProcessing requestsProcessing
+      = new RequestsProcessing(taskExecutor, responseProcessing, commonDuration);
+  protected boolean forceStopped = false;
+  private ServerSocketChannel serverSocketChannel;
 
 
   public SelectorServer(int port) {

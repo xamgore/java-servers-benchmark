@@ -1,6 +1,8 @@
 package server.selector;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import common.Duration;
+import common.Duration.Timer;
 import common.IntArrayOuterClass;
 import common.SortingUtil;
 
@@ -17,27 +19,18 @@ import static java.nio.channels.SelectionKey.OP_READ;
 
 public class RequestsProcessing extends SelectorProcessing {
 
-  public static class Attachment {
-
-    ByteBuffer bufferForMsgSize = ByteBuffer.allocate(Integer.BYTES);
-    ByteBuffer bufferForMsg = ByteBuffer.allocate(0);
-    int msgSize = -1;
-
-  }
-
-
+  private final Duration duration;
   private final ExecutorService taskExecutor;
   private final ResponseProcessing responseProcessing;
 
-
-  public RequestsProcessing(ExecutorService taskExecutor, ResponseProcessing responseProcessing) {
+  public RequestsProcessing(ExecutorService taskExecutor, ResponseProcessing responseProcessing, Duration duration) {
     this.taskExecutor = taskExecutor;
     this.responseProcessing = responseProcessing;
+    this.duration = duration;
   }
 
-
   @Override protected void register(Selector selector, QueElement elem) throws ClosedChannelException {
-    elem.channel.register(selector, OP_READ, new Attachment());
+    elem.channel.register(selector, OP_READ, new Attachment(duration.newClient()));
   }
 
   protected void processKey(SelectionKey key) {
@@ -88,7 +81,9 @@ public class RequestsProcessing extends SelectorProcessing {
     att.bufferForMsg.flip();
     byte[] buffer = new byte[att.msgSize];
     att.bufferForMsg.get(buffer);
-    taskExecutor.execute(processMsg(buffer, channel));
+
+    Timer timer = att.durationClient.newTimer().trackRequest();
+    taskExecutor.execute(processMsg(buffer, channel, timer));
 
     // clean for the next message from the user
     att.bufferForMsg.clear();
@@ -96,11 +91,14 @@ public class RequestsProcessing extends SelectorProcessing {
     return false;
   }
 
-  private Runnable processMsg(byte[] buffer, SocketChannel channel) {
+  private Runnable processMsg(byte[] buffer, SocketChannel channel, Timer timer) {
     return () -> {
       try {
+        timer.trackSorting();
         IntArrayOuterClass.ArrayMsg result = SortingUtil.sort(parseFrom(buffer));
-        responseProcessing.add(channel, result);
+        timer.breakSorting();
+
+        responseProcessing.add(channel, result, timer);
       } catch (InvalidProtocolBufferException e) {
         facedIOException = true;
         e.printStackTrace();
@@ -112,6 +110,19 @@ public class RequestsProcessing extends SelectorProcessing {
     channel.configureBlocking(false);
     queue.add(new QueElement(channel));
     selector.wakeup();
+  }
+
+  public static class Attachment {
+
+    Duration.Client durationClient;
+    ByteBuffer bufferForMsgSize = ByteBuffer.allocate(Integer.BYTES);
+    ByteBuffer bufferForMsg = ByteBuffer.allocate(0);
+    int msgSize = -1;
+
+    public Attachment(Duration.Client durationClient) {
+      this.durationClient = durationClient;
+    }
+
   }
 
 }
