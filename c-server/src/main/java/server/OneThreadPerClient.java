@@ -22,7 +22,6 @@ public class OneThreadPerClient extends Architecture {
 
   private ServerSocket serverSocket;
   private final Set<Connection> activeClients;
-  private final Duration commonDuration = new Duration();
   private boolean forceStopped = false;
 
 

@@ -23,7 +23,6 @@ public class CommonTaskExecutor extends Architecture {
   private ServerSocket serverSocket;
   private boolean forceStopped = false;
   private final ExecutorService taskExecutor = newFixedThreadPool(4);
-  private final Duration commonDuration = new Duration();
 
 
   public CommonTaskExecutor(int port) {

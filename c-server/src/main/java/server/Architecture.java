@@ -1,12 +1,16 @@
 package server;
 
+import common.Duration;
+
 import java.io.IOException;
 
 public abstract class Architecture implements Runnable {
 
   protected final int port;
   protected final Thread thread = new Thread(this);
-  protected boolean facedIOException = false; // todo: reject statistics
+  protected boolean facedIOException = false;
+  public final Duration commonDuration = new Duration();
+
 
   public Architecture(int port) {
     this.port = port;
