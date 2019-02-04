@@ -1,3 +1,4 @@
+import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.chart.LineChart;
@@ -7,8 +8,11 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.TextField;
+import javafx.scene.image.WritableImage;
 import javafx.stage.Window;
 
+import javax.imageio.ImageIO;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -29,6 +33,9 @@ public class UI {
 
   @FXML
   private Button submitButton;
+
+  @FXML
+  private Button saveChartsButton;
 
   @FXML
   private TextField numberOfRequestsField;
@@ -60,6 +67,13 @@ public class UI {
   @FXML
   private ChoiceBox architectureChoiceBox;
 
+  private String fileName = "empty";
+
+  @FXML
+  protected void handleSaveChartsButtonAction(ActionEvent event) throws IOException {
+    WritableImage snapShot = saveChartsButton.getScene().snapshot(null);
+    ImageIO.write(SwingFXUtils.fromFXImage(snapShot, null), "png", new File(fileName + ".png"));
+  }
 
   @FXML
   protected void handleSubmitButtonAction(ActionEvent event) throws InterruptedException, IOException {
@@ -124,8 +138,8 @@ public class UI {
         )));
 
     String variableParameterName = (String) variableParameterChoiceBox.getValue();
-    String fileName = String.format("arch%d.%s.csv", config.getArchitecture() + 1, variableParameterName);
-    Files.write(Paths.get(fileName), lines);
+    fileName = String.format("arch%d.%s", config.getArchitecture() + 1, variableParameterName);
+    Files.write(Paths.get(fileName + ".csv"), lines);
   }
 
 
