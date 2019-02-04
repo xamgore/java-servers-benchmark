@@ -10,6 +10,9 @@ import javafx.scene.control.TextField;
 import javafx.stage.Window;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -84,7 +87,7 @@ public class UI {
         variableParameterChoiceBox.getItems().indexOf(variableParameterChoiceBox.getValue()));
 
     List<AttackResult> results = dispatcher.attack(config);
-
+    dumpResultsToDisk(results, config);
 
     clientChart.getData().clear();
 
@@ -102,6 +105,27 @@ public class UI {
     serverChart.getData().add(newSeries(results,
         "server sorting avg time",
         res -> res.serverAverageSortingTime));
+  }
+
+  private void dumpResultsToDisk(List<AttackResult> results, AttackConfig config) throws IOException {
+    List<String> lines = new ArrayList<>(1);
+    lines.add("ClientTime,RequestTime,SortingTime,ClientsNumber,SleepDelta,ArraySize,RequestsNumber,VaryingParam");
+
+    results.forEach(res -> lines.add(
+        String.format("%.2f,%.2f,%.2f,%d,%d,%d,%d,%d",
+            res.clientAverageTimePerRequest,
+            res.serverAverageRequestTime,
+            res.serverAverageSortingTime,
+            config.getClientsNumber(),
+            config.getSleepDelta(),
+            config.getArraySize(),
+            config.getRequestsNumber(),
+            res.varyingParameter
+        )));
+
+    String variableParameterName = (String) variableParameterChoiceBox.getValue();
+    String fileName = String.format("arch%d.%s.csv", config.getArchitecture() + 1, variableParameterName);
+    Files.write(Paths.get(fileName), lines);
   }
 
 
