@@ -1,5 +1,7 @@
 package server;
 
+import common.Duration;
+import common.Duration.Timer;
 import common.IntArrayOuterClass.ArrayMsg;
 import common.SortingUtil;
 import common.Stopwatch;
@@ -20,6 +22,7 @@ public class OneThreadPerClient extends Architecture {
 
   private ServerSocket serverSocket;
   private final Set<Connection> activeClients;
+  private final Duration commonDuration = new Duration();
   private boolean forceStopped = false;
 
 
@@ -70,6 +73,7 @@ public class OneThreadPerClient extends Architecture {
     final Stopwatch sortingStopwatch;
     final Stopwatch requestStopwatch;
     final Thread myThread;
+    final Duration.Client clientDuration;
 
     public Connection(Socket socket) throws IOException {
       this.socket = socket;
@@ -78,6 +82,7 @@ public class OneThreadPerClient extends Architecture {
       sortingStopwatch = new Stopwatch();
       requestStopwatch = new Stopwatch();
       myThread = new Thread(this);
+      clientDuration = commonDuration.newClient();
     }
 
     @Override public void run() {
@@ -92,24 +97,19 @@ public class OneThreadPerClient extends Architecture {
         facedIOException = true;
         e.printStackTrace();
       } finally {
-        // remove self from the tracking list
+        // remove self from the tracking clients
         activeClients.remove(this);
         closeSocket(socket);
-
-        commonRequestTime.addAndGet(requestStopwatch.getDuration());
-        commonSortingTime.addAndGet(sortingStopwatch.getDuration());
-        clientsProcessed.incrementAndGet();
       }
     }
 
     private void processMsg(byte[] buffer) throws IOException {
-      requestStopwatch.start();
-      sortingStopwatch.start();
+      Timer timer = clientDuration.newTimer().trackAll();
       ArrayMsg result = SortingUtil.sort(parseFrom(buffer));
-      sortingStopwatch.stop();
+      timer.breakSorting();
 
       writeMsg(result);
-      requestStopwatch.stop();
+      timer.breakRequest();
     }
 
     int readMsgSize() throws IOException {

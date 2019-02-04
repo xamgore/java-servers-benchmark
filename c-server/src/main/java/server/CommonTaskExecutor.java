@@ -1,9 +1,10 @@
 package server;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import common.Duration;
+import common.Duration.Timer;
 import common.IntArrayOuterClass.ArrayMsg;
 import common.SortingUtil;
-import common.Stopwatch;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -22,6 +23,8 @@ public class CommonTaskExecutor extends Architecture {
   private ServerSocket serverSocket;
   private boolean forceStopped = false;
   private final ExecutorService taskExecutor = newFixedThreadPool(4);
+  private final Duration commonDuration = new Duration();
+
 
   public CommonTaskExecutor(int port) {
     super(port);
@@ -61,6 +64,7 @@ public class CommonTaskExecutor extends Architecture {
     final DataInputStream in;
     final DataOutputStream out;
     final ExecutorService sendResponseExecutor;
+    final Duration.Client clientDuration;
     final Thread myThread;
 
     public Connection(Socket socket) throws IOException {
@@ -68,6 +72,7 @@ public class CommonTaskExecutor extends Architecture {
       in = new DataInputStream(socket.getInputStream());
       out = new DataOutputStream(socket.getOutputStream());
       sendResponseExecutor = newSingleThreadExecutor();
+      clientDuration = commonDuration.newClient();
       myThread = new Thread(this);
     }
 
@@ -77,7 +82,9 @@ public class CommonTaskExecutor extends Architecture {
         while (!Thread.interrupted()) {
           byte[] buffer = readMsg();
           if (buffer == null) break;
-          taskExecutor.execute(processMsg(buffer));
+
+          Timer timer = clientDuration.newTimer().trackRequest();
+          taskExecutor.execute(processMsg(buffer, timer));
         }
       } catch (IOException e) {
         facedIOException = true;
@@ -88,15 +95,14 @@ public class CommonTaskExecutor extends Architecture {
       }
     }
 
-    private Runnable processMsg(byte[] buffer) {
+    private Runnable processMsg(byte[] buffer, Timer timer) {
       return () -> {
         try {
-          Stopwatch requestTime = new Stopwatch().start();
-          Stopwatch sortingTime = new Stopwatch().start();
+          timer.trackSorting();
           ArrayMsg result = SortingUtil.sort(parseFrom(buffer));
-          sortingTime.stop();
+          timer.breakSorting();
 
-          sendResponseExecutor.execute(sendResponse(result, requestTime, sortingTime));
+          sendResponseExecutor.execute(sendResponse(result, timer));
         } catch (InvalidProtocolBufferException e) {
           facedIOException = true;
           e.printStackTrace();
@@ -104,7 +110,7 @@ public class CommonTaskExecutor extends Architecture {
       };
     }
 
-    private Runnable sendResponse(ArrayMsg result, Stopwatch requestTime, Stopwatch sortingTime) {
+    private Runnable sendResponse(ArrayMsg result, Timer timer) {
       return () -> {
         try {
           writeMsg(result);
@@ -112,7 +118,7 @@ public class CommonTaskExecutor extends Architecture {
           facedIOException = true;
           e.printStackTrace();
         } finally {
-          requestTime.stop();
+          timer.breakRequest();
         }
       };
     }
