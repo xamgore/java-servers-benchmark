@@ -37,8 +37,9 @@ public class RequestsProcessing extends SelectorProcessing {
     int arraySize = ((Attachment) key.attachment()).msgSize;
 
     try {
-      // read size, read array
-      boolean isEndOfStream = (arraySize < 0 && readMsgSizeAndAllocateBuffer(key)) || readArrayAndMakeNewTask(key);
+      boolean isPartWithMsgSizeExpected = arraySize < 0;
+      boolean isEndOfStream = isPartWithMsgSizeExpected
+          ? readMsgSizeAndAllocateBuffer(key) : readArrayAndMakeNewTask(key);
       if (isEndOfStream) key.cancel();
     } catch (IOException ex) {
       facedIOException = true;
